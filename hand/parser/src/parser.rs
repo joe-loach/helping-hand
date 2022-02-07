@@ -121,6 +121,18 @@ impl Marker {
         }
         p.steps.push(Step::Finish);
     }
+
+    pub(crate) fn abandon(self, p: &mut Parser) {
+        let idx = self.pos as usize;
+        if idx == p.steps.len() - 1 {
+            match p.steps.pop() {
+                Some(Step::Start {
+                    kind: syntax::SyntaxKind::TOMBSTONE,
+                }) => (),
+                _ => unreachable!(),
+            }
+        }
+    }
 }
 
 pub(super) struct Source {

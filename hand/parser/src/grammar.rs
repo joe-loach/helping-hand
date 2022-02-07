@@ -80,7 +80,10 @@ fn arg(p: &mut Parser) {
         HASH => immediate(p),
         OPEN_SQUARE => address(p),
         OPEN_CURLY => reg_list(p),
-        _ => (),
+        _ => {
+            m.abandon(p);
+            return;
+        },
     }
     m.finish(p, ARG);
 }
