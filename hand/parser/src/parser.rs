@@ -1,17 +1,17 @@
 use lexer::LexedStr;
 use syntax::SyntaxKind;
 
-use crate::event::Step;
+use crate::step::Step;
 
-pub(crate) struct Parser {
-    source: Source,
+pub(crate) struct Parser<'s> {
+    source: Source<'s>,
     pos: usize,
     steps: Vec<Step>,
 }
 
-impl Parser {
+impl<'s> Parser<'s> {
     /// Create a new parser from a stream of "trivia-less" tokens.
-    pub(crate) fn new(source: Source) -> Self {
+    pub(crate) fn new(source: Source<'s>) -> Self {
         Self {
             source,
             pos: 0,
@@ -42,22 +42,14 @@ impl Parser {
     }
 
     /// Returns the `n`th [`str`], offset from the position in the token stream.
-    // pub(crate) fn nth_str(&self, n: usize) -> Option<&str> {
-    //     self.tokens.text(self.pos + n)
-    // }
+    pub(crate) fn nth_str(&self, n: usize) -> Option<&'s str> {
+        self.source.text(self.pos + n)
+    }
 
     /// Returns true if at `kind`.
     pub(crate) fn at(&self, kind: SyntaxKind) -> bool {
         self.nth(0) == kind
     }
-
-    /// Returns true if the current token's text is `text`.
-    // pub(crate) fn at_str(&self, text: &str) -> bool {
-    //     self.tokens
-    //         .text(self.pos)
-    //         .map(|t| t == text)
-    //         .unwrap_or(false)
-    // }
 
     /// Try and consume a `kind` at the current position of the parse stream.
     /// If the parser isn't at `kind`, this returns false.
@@ -121,31 +113,24 @@ impl Marker {
         }
         p.steps.push(Step::Finish);
     }
-
-    pub(crate) fn abandon(self, p: &mut Parser) {
-        let idx = self.pos as usize;
-        if idx == p.steps.len() - 1 {
-            match p.steps.pop() {
-                Some(Step::Start {
-                    kind: syntax::SyntaxKind::TOMBSTONE,
-                }) => (),
-                _ => unreachable!(),
-            }
-        }
-    }
 }
 
-pub(super) struct Source {
+pub(crate) struct Source<'a> {
     kind: Vec<SyntaxKind>,
+    text: Vec<&'a str>,
 }
 
-impl Source {
-    pub(crate) fn new(text: &LexedStr) -> Self {
-        let mut res = Source { kind: Vec::new() };
-        for i in 0..text.len() {
-            let kind = text.kind(i);
+impl<'a> Source<'a> {
+    pub(crate) fn new(lexed: &'a LexedStr) -> Self {
+        let mut res = Source {
+            kind: Vec::new(),
+            text: Vec::new(),
+        };
+        for i in 0..lexed.len() {
+            let kind = lexed.kind(i);
             if !kind.is_trivia() {
-                res.push(kind);
+                let text = lexed.text(i);
+                res.push(kind, text);
             }
         }
         res
@@ -155,7 +140,12 @@ impl Source {
         self.kind.get(idx).copied().unwrap_or(SyntaxKind::EOF)
     }
 
-    fn push(&mut self, kind: SyntaxKind) {
+    pub(crate) fn text(&self, idx: usize) -> Option<&'a str> {
+        self.text.get(idx).copied()
+    }
+
+    fn push(&mut self, kind: SyntaxKind, text: &'a str) {
         self.kind.push(kind);
+        self.text.push(text);
     }
 }
