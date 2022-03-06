@@ -13,8 +13,7 @@ fn program(p: &mut Parser) {
     let m = p.start();
     while !p.at(EOF) {
         match p.current() {
-            IDENT => statement(p),
-            k if k.is_opcode() => statement(p),
+            IDENT | OPCODE => statement(p),
             _ => {
                 let m = p.start();
                 p.error("Expected statement");
@@ -28,34 +27,38 @@ fn program(p: &mut Parser) {
 
 /// LABEL? INSTR
 fn statement(p: &mut Parser) {
+    assert!(p.at(OPCODE) | p.at(IDENT));
     let m = p.start();
     match p.current() {
+        OPCODE => instr(p),
         IDENT => {
             label(p);
-            // look-ahead to collapse line
-            if p.current().is_opcode() {
+            // look-ahead to combine with statement
+            if p.at(OPCODE) {
                 instr(p);
             }
         }
-        k if k.is_opcode() => instr(p),
         _ => unreachable!(),
     }
     m.finish(p, STATEMENT);
 }
 
-/// CODE ARG_LIST
+/// OP ARG_LIST
 fn instr(p: &mut Parser) {
+    assert!(p.at(OPCODE));
     let m = p.start();
-    opcode(p);
+    op(p);
     arg_list(p);
     m.finish(p, INSTR);
 }
 
-fn opcode(p: &mut Parser) {
-    debug_assert!(p.current().is_opcode());
+/// OPCODE COND?
+fn op(p: &mut Parser) {
+    assert!(p.at(OPCODE));
     let m = p.start();
-    p.bump_any();
-    m.finish(p, OPCODE);
+    p.bump(OPCODE);
+    p.eat(COND);
+    m.finish(p, OP);
 }
 
 /// ARG, ARG ...
@@ -73,17 +76,20 @@ fn arg_list(p: &mut Parser) {
 /// REG | SHIFT | LABEL | HASH | ADDRESS | REG_LIST
 fn arg(p: &mut Parser) {
     let m = p.start();
-    match p.current() {
-        k if k.is_register() => register(p),
-        k if k.is_shift() => shift(p),
-        IDENT => label(p),
-        HASH => immediate(p),
-        OPEN_SQUARE => address(p),
-        OPEN_CURLY => reg_list(p),
+    let c = p.current();
+    let s = p.nth_str(0);
+    match (c, s) {
+        (k, _) if k.is_register() => register(p),
+        (OPCODE, Some("ASR" | "LSL" | "LSR" | "ROR" | "RRX")) => shift(p),
+        (IDENT, _) => label(p),
+        (HASH, _) => immediate(p),
+        (OPEN_SQUARE, _) => address(p),
+        (OPEN_CURLY, _) => reg_list(p),
         _ => {
-            m.abandon(p);
+            p.error("expected an argument");
+            m.finish(p, ERROR);
             return;
-        },
+        }
     }
     m.finish(p, ARG);
 }
@@ -104,38 +110,51 @@ fn reg_list(p: &mut Parser) {
     m.finish(p, REG_LIST);
 }
 
-/// [REGISTER]
-/// [REGISTER], IMMEDIATE
-/// [REGISTER,IMMEDIATE]
-/// [REGISTER,IMMEDIATE]!
+/// offset: [REGISTER, OFFSET]
+/// post  : [REGISTER, OFFSET]!
+/// pre   : [REGISTER], OFFSET
 fn address(p: &mut Parser) {
     assert!(p.at(OPEN_SQUARE));
     let m = p.start();
     p.bump(OPEN_SQUARE);
-
     register(p);
-
     if p.eat(COMMA) {
-        immediate(p);
+        offset(p);
         p.expect(CLOSE_SQUARE);
         p.eat(BANG);
     } else {
         p.expect(CLOSE_SQUARE);
-        if p.eat(COMMA) {
-            immediate(p);
-        }
+        p.expect(COMMA);
+        offset(p);
     }
     m.finish(p, ADDRESS);
 }
 
-fn shift(p: &mut Parser) {
-    debug_assert!(p.current().is_shift());
+/// IMMEDIATE
+/// SIGN REGISTER (, SHIFT)?
+fn offset(p: &mut Parser) {
     let m = p.start();
-    let shift = p.current();
-    p.bump(shift);
-    match shift {
-        RRX => (),
-        _ => match p.current() {
+    if p.at(HASH) {
+        immediate(p);
+    } else {
+        sign(p);
+        register(p);
+        if p.eat(COMMA) {
+            shift(p);
+        }
+    }
+    m.finish(p, OFFSET);
+}
+
+/// OP (REGISTER | IMMEDIATE)?
+fn shift(p: &mut Parser) {
+    assert!(p.at(OPCODE));
+    let m = p.start();
+    let code = p.nth_str(0).unwrap();
+    op(p);
+    match code {
+        "RRX" => (),
+        "ASR" | "LSL" | "LSR" | "ROR" => match p.current() {
             curr if curr.is_register() => register(p),
             HASH => immediate(p),
             _ => {
@@ -145,33 +164,37 @@ fn shift(p: &mut Parser) {
                 m.finish(p, ERROR);
             }
         },
+        _ => {
+            p.error("attempted to shift using a non-shift instruction");
+            m.finish(p, ERROR);
+            return;
+        }
     }
     m.finish(p, SHIFT);
 }
 
-/// # (+|-)? LITERAL
+/// \# SIGN LITERAL
 fn immediate(p: &mut Parser) {
     assert!(p.at(HASH));
     let m = p.start();
     p.bump(HASH);
-    if !p.eat(PLUS) {
-        p.eat(MINUS);
-    }
+    sign(p);
     p.expect(LITERAL);
     m.finish(p, IMMEDIATE);
 }
 
-/// RN | SP | LR | PC
+/// RN | SP | LR | PC !?
 fn register(p: &mut Parser) {
     let m = p.start();
-    let kind = if p.current().is_register() {
-        REGISTER
+    if p.current().is_register() {
+        p.bump_any();
+        p.eat(BANG);
+        m.finish(p, REGISTER);
     } else {
+        p.bump_any();
         p.error("expected a register");
-        ERROR
+        m.finish(p, ERROR);
     };
-    p.bump_any();
-    m.finish(p, kind);
 }
 
 /// IDENT :?
@@ -194,4 +217,13 @@ fn name(p: &mut Parser) {
         p.bump_any();
         m.finish(p, ERROR);
     }
+}
+
+/// (+|-)?
+fn sign(p: &mut Parser) {
+    let m = p.start();
+    if !p.eat(PLUS) {
+        p.eat(MINUS);
+    }
+    m.finish(p, SIGN);
 }
