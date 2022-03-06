@@ -3,10 +3,12 @@ pub mod ast;
 mod event;
 mod grammar;
 mod parser;
+mod step;
 
 use event::StrStep;
 use lexer::LexedStr;
 use parser::{Parser, Source};
+use step::StrStep;
 use syntax::{
     rowan::{GreenNode, GreenNodeBuilder},
     SyntaxNode,
@@ -34,7 +36,7 @@ pub fn parse(text: &LexedStr) -> Parse {
     let (node, errors) = {
         let mut errors = Vec::new();
         let mut builder = GreenNodeBuilder::new();
-        event::attach_trivia(text, steps, &mut |step| match step {
+        step::attach_trivia(text, steps, &mut |step| match step {
             StrStep::Start { kind } => builder.start_node(kind.into()),
             StrStep::Token { kind, text } => builder.token(kind.into(), text),
             StrStep::Finish => builder.finish_node(),
