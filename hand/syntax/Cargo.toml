@@ -7,6 +7,3 @@ edition = "2021"
 
 [dependencies]
 rowan = "0.15.2"
-
-[dev-dependencies]
-roxmltree = "0.14.1"

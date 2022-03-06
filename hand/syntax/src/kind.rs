@@ -2,372 +2,55 @@
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SyntaxKind {
-    /// A value that doesn't exist yet.
     TOMBSTONE,
-
-    /// A kind that is unknown to the parser.
+    
     UNKNOWN,
-    /// End Of File.
     EOF,
-    /// Any whitespace; spaces, newlines etc.
     WHITESPACE,
-    /// An Error.
     ERROR,
-
-    /// A Comment.
     COMMENT,
-    /// An identifier.
     IDENT,
-    /// A literal value.
     LITERAL,
+    STRING,
 
-    /// '!'
     BANG,
-    /// ','
     COMMA,
-    /// ':'
     COLON,
-    /// '\#'
     HASH,
-    /// '-'
     MINUS,
-    /// '+'
     PLUS,
-    /// '['
     OPEN_SQUARE,
-    /// ']'
     CLOSE_SQUARE,
-    /// '{'
     OPEN_CURLY,
-    /// '}'
     CLOSE_CURLY,
-    /// '/'
     SLASH,
 
-    // AST
     ROOT,
     PROGRAM,
     STATEMENT,
     INSTR,
+    OP,
     OPCODE,
+    COND,
     ARG_LIST,
     REG_LIST,
     ARG,
     ADDRESS,
+    OFFSET,
     SHIFT,
     IMMEDIATE,
     REGISTER,
     LABEL,
     NAME,
-    KW_TRUE,
-    KW_FALSE,
+    SIGN,
 
-    // Registers
-    R0,
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-    R8,
-    R9,
-    R10,
-    R11,
-    R12,
-    R13,
-    R14,
-    R15,
+    TRUE,
+    FALSE,
+
+    RN,
     SP,
     LR,
     PC,
-
-    // Instructions
-    ADC,
-    ADCS,
-    ADD,
-    ADDS,
-    ADR,
-    AND,
-    ANDS,
-    ASR,
-    ASRS,
-    B,
-    BFC,
-    BFI,
-    BIC,
-    BICS,
-    BKPT,
-    BL,
-    BLX,
-    BX,
-    BXJ,
-    CBNZ,
-    CLREX,
-    CLZ,
-    CMN,
-    CMP,
-    CPS,
-    CPSID,
-    CPSIE,
-    CRC32,
-    CRC32C,
-    CSDB,
-    DBG,
-    DCPS1,
-    DCPS2,
-    DCPS3,
-    DMB,
-    DSB,
-    EOR,
-    EORS,
-    ERET,
-    ESB,
-    HTL,
-    HVC,
-    ISB,
-    IT,
-    LDA,
-    LDAB,
-    LDAEX,
-    LDAEXB,
-    LDAEXD,
-    LDAEXH,
-    LDAH,
-    LDC,
-    LDM,
-    LDMDA,
-    LDMFA,
-    LDMDB,
-    LDMEA,
-    LDMIB,
-    LDMED,
-    LDR,
-    LDRB,
-    LDRBT,
-    LDRD,
-    LDREX,
-    LDREXB,
-    LDREXD,
-    LDREXH,
-    LDRH,
-    LDRHT,
-    LDRSB,
-    LDRSBT,
-    LDRSH,
-    LDRSHT,
-    LDRT,
-    LSL,
-    LSLS,
-    LSR,
-    LSRS,
-    MCR,
-    MCRR,
-    MLA,
-    MLAS,
-    MLS,
-    MOV,
-    MOVS,
-    MOVT,
-    MRC,
-    MRRC,
-    MRS,
-    MSR,
-    MUL,
-    MULS,
-    MVN,
-    MVNS,
-    NOP,
-    ORN,
-    ORNS,
-    ORR,
-    ORRS,
-    PKHBT,
-    PKHTB,
-    PLD,
-    PLDW,
-    PLI,
-    POP,
-    PSSBB,
-    PUSH,
-    QADD,
-    QADD16,
-    QADD8,
-    QASX,
-    QDADD,
-    QDSUB,
-    QSAX,
-    QSUB,
-    QSUB16,
-    QSUB8,
-    RBIT,
-    REV,
-    REV16,
-    REVSH,
-    RFE,
-    RFEDA,
-    RFEDB,
-    RFEIA,
-    RFEIB,
-    ROR,
-    RORS,
-    RRX,
-    RRXS,
-    RSB,
-    RSBS,
-    RSC,
-    RSCS,
-    SADD16,
-    SADD8,
-    SASX,
-    SB,
-    SBC,
-    SBCS,
-    SBFX,
-    SDIV,
-    SEL,
-    SETEND,
-    SETPAN,
-    SEV,
-    SEVL,
-    SHADD16,
-    SHADD8,
-    SHASX,
-    SHSAX,
-    SHSUB16,
-    SHSUB8,
-    SMC,
-    SMLABB,
-    SMLABT,
-    SMLATB,
-    SMLATT,
-    SMLAD,
-    SMLADX,
-    SMLAL,
-    SMLALS,
-    SMLALBB,
-    SMLALBT,
-    SMLALTB,
-    SMLALTT,
-    SMLALD,
-    SMLALDX,
-    SMLAWB,
-    SMLAWT,
-    SMLSD,
-    SMLSDX,
-    SMLSLD,
-    SMLSLDX,
-    SMMLA,
-    SMMLAR,
-    SMMLS,
-    SMMLSR,
-    SMMUL,
-    SMMULR,
-    SMUAD,
-    SMUADX,
-    SMULBB,
-    SMULBT,
-    SMULTB,
-    SMULTT,
-    SMULL,
-    SMULLS,
-    SMULWB,
-    SMULWT,
-    SMUSD,
-    SMUSDX,
-    SRS,
-    SRSDA,
-    SRSDB,
-    SRSIA,
-    SRSIB,
-    SSAT,
-    SSAT16,
-    SSAX,
-    SSBB,
-    SSUB16,
-    SSUB8,
-    STC,
-    STL,
-    STLB,
-    STLEX,
-    STLEXB,
-    STLEXD,
-    STLEXH,
-    STLH,
-    STM,
-    STMIA,
-    STMEA,
-    STMDA,
-    STMED,
-    STMDB,
-    STMFD,
-    STMIB,
-    STMFA,
-    STR,
-    STRB,
-    STRBT,
-    STRD,
-    STREX,
-    STREXB,
-    STREXD,
-    STREXH,
-    STRH,
-    STRHT,
-    STRT,
-    SUB,
-    SUBS,
-    SVC,
-    SXTAB,
-    SXTAB16,
-    SXTAH,
-    SXTB,
-    SXTB16,
-    SXTH,
-    TBB,
-    TBH,
-    TEQ,
-    TSB,
-    TST,
-    UADD16,
-    UADD8,
-    UASX,
-    UBFX,
-    UDF,
-    UDIV,
-    UHADD16,
-    UHADD8,
-    UHASX,
-    UHSAX,
-    UHSUB16,
-    UHSUB8,
-    UMAAL,
-    UMLAL,
-    UMLALS,
-    UMULL,
-    UMULLS,
-    UQADD16,
-    UQADD8,
-    UQASX,
-    UQSAX,
-    UQSUB16,
-    UQSUB8,
-    USAD8,
-    USADA8,
-    USAT,
-    USAT16,
-    USAX,
-    USUB16,
-    USUB8,
-    UXTAB,
-    UXTAB16,
-    UXTAH,
-    UXTB,
-    UXTB16,
-    UXTH,
-    WFE,
-    WFI,
-    YIELD,
 
     #[doc(hidden)]
     LAST,
@@ -375,75 +58,39 @@ pub enum SyntaxKind {
 
 use SyntaxKind::*;
 
+use crate::{Condition, OPCODES, REGISTERS};
+
 impl SyntaxKind {
     pub fn is_trivia(&self) -> bool {
         matches!(self, WHITESPACE | COMMENT)
     }
 
-    pub fn is_shift(&self) -> bool {
-        matches!(self, LSL | LSR | ASR | ROR | RRX)
-    }
-
     pub fn is_register(&self) -> bool {
-        matches!(
-            self,
-            SP | LR
-                | PC
-                | R0
-                | R1
-                | R2
-                | R3
-                | R4
-                | R5
-                | R6
-                | R7
-                | R8
-                | R9
-                | R10
-                | R11
-                | R12
-                | R13
-                | R14
-                | R15
-        )
+        matches!(self, RN | SP | LR | PC)
     }
 
-    pub fn is_opcode(&self) -> bool {
-        matches!(self, ADC | ADD | ADR | MOV | MVN | STR)
-    }
-
-    pub fn from_keyword(s: &str) -> Option<Self> {
-        let kw = match s.to_ascii_uppercase().as_str() {
-            "TRUE" => KW_TRUE,
-            "FALSE" => KW_FALSE,
-            "R0" => R0,
-            "R1" => R1,
-            "R2" => R2,
-            "R3" => R3,
-            "R4" => R4,
-            "R5" => R5,
-            "R6" => R6,
-            "R7" => R7,
-            "R8" => R8,
-            "R9" => R9,
-            "R10" => R10,
-            "R11" => R11,
-            "R12" => R12,
-            "R13" => R13,
-            "R14" => R14,
-            "R15" => R15,
+    pub fn from_register(s: &str) -> Option<SyntaxKind> {
+        let kind = match s {
             "SP" => SP,
             "LR" => LR,
             "PC" => PC,
-            "ADC" => ADC,
-            "ADD" => ADD,
-            "ADR" => ADR,
-            "MOV" => MOV,
-            "MVN" => MVN,
-            "STR" => STR,
+            _ if REGISTERS.contains(&s) => RN,
             _ => return None,
         };
-        Some(kw)
+        Some(kind)
+    }
+
+    pub fn from_opcode(s: &str) -> Option<(SyntaxKind, Option<(usize, SyntaxKind)>)> {
+        for &(_, code) in OPCODES {
+            if let Some(rest) = s.strip_prefix(code) {
+                if rest.is_empty() {
+                    return Some((OPCODE, None));
+                } else if rest.parse::<Condition>().is_ok() {
+                    return Some((OPCODE, Some((code.len(), COND))));
+                }
+            }
+        }
+        None
     }
 }
 

@@ -1,13 +1,15 @@
-#[derive(PartialEq, Eq)]
-pub enum Conditional {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Condition {
     /// Equal (Z == 1)
     EQ = 0b0000,
     /// Not equal (Z == 0)
     NE = 0b0001,
     /// Carry set (C == 1)
+    /// 
     /// Also called "HS" (unsigned higher or same)
     CS = 0b0010,
     /// Carry clear (C == 0)
+    /// 
     /// Also called "LO" (unsigned lower)
     CC = 0b0011,
     /// Minus, negative (N == 1)
@@ -34,9 +36,43 @@ pub enum Conditional {
     AL = 0b1110,
 }
 
-impl Conditional {
+impl Condition {
     /// Alias for "CS"
     pub const HS: Self = Self::CS;
-    /// Alias for "LO"
+    /// Alias for "CC"
     pub const LO: Self = Self::CC;
+
+    /// Returns the byte representing the condition in the lower 4 bits of the byte.
+    pub fn value(&self) -> u32 {
+        *self as u32
+    }
+}
+
+
+impl core::str::FromStr for Condition {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cond = match s {
+            "EQ" => Condition::EQ,
+            "NE" => Condition::NE,
+            "CS" => Condition::CS,
+            "CC" => Condition::CC,
+            "MI" => Condition::MI,
+            "PL" => Condition::PL,
+            "VS" => Condition::VS,
+            "VC" => Condition::VC,
+            "HI" => Condition::HI,
+            "LS" => Condition::LS,
+            "GE" => Condition::GE,
+            "LT" => Condition::LT,
+            "GT" => Condition::GT,
+            "LE" => Condition::LE,
+            "HS" => Condition::HS,
+            "LO" => Condition::LO,
+            "AL" => Condition::AL,
+            _ => return Err(()),
+        };
+        Ok(cond)
+    }
 }

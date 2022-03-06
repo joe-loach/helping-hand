@@ -1,341 +1,70 @@
-use crate::SyntaxKind;
-
-#[derive(Debug)]
-pub struct Arg {
-    pub optional: bool,
-    pub kind: ArgKind,
+// TODO: finish
+opcodes! {
+    ADC,
+    ADD,
+    ADR,
+    B,
+    CMP,
+    LDR,
+    LDRB,
+    MOV,
+    MUL,
+    MVN,
+    //NOP, breaks everything! expects to find arguments when it doesnt take any
+    POP,
+    PUSH,
+    ROR,
+    RRX,
+    STR,
+    SUB,
+    ASR,
+    LSL,
+    LSR,
+    STMDB,
+    STMFD,
 }
 
-#[derive(Debug)]
-pub enum ArgKind {
-    /// Immediate value
-    Imm,
-    /// Register
-    Reg,
-    /// Label
-    Label,
-    /// Stack Pointer
-    Sp,
-    /// Program Counter
-    Pc,
-    /// Shift
-    Shift,
-}
+impl core::str::FromStr for Opcode {
+    type Err = ();
 
-crate::macros::str_enum! {
-    #[repr(u16)]
-    #[derive(Debug, Clone, Copy)]
-    pub enum Op {
-        ADC,
-        ADCS,
-        ADD,
-        ADDS,
-        ADR,
-        AND,
-        ANDS,
-        ASR,
-        ASRS,
-        B,
-        BFC,
-        BFI,
-        BIC,
-        BICS,
-        BKPT,
-        BL,
-        BLX,
-        BX,
-        BXJ,
-        CBNZ,
-        CLREX,
-        CLZ,
-        CMN,
-        CMP,
-        CPS,
-        CPSID,
-        CPSIE,
-        CRC32,
-        CRC32C,
-        CSDB,
-        DBG,
-        DCPS1,
-        DCPS2,
-        DCPS3,
-        DMB,
-        DSB,
-        EOR,
-        EORS,
-        ERET,
-        ESB,
-        HTL,
-        HVC,
-        ISB,
-        IT,
-        LDA,
-        LDAB,
-        LDAEX,
-        LDAEXB,
-        LDAEXD,
-        LDAEXH,
-        LDAH,
-        LDC,
-        LDM,
-        LDMDA,
-        LDMFA,
-        LDMDB,
-        LDMEA,
-        LDMIB,
-        LDMED,
-        LDR,
-        LDRB,
-        LDRBT,
-        LDRD,
-        LDREX,
-        LDREXB,
-        LDREXD,
-        LDREXH,
-        LDRH,
-        LDRHT,
-        LDRSB,
-        LDRSBT,
-        LDRSH,
-        LDRSHT,
-        LDRT,
-        LSL,
-        LSLS,
-        LSR,
-        LSRS,
-        MCR,
-        MCRR,
-        MLA,
-        MLAS,
-        MLS,
-        MOV,
-        MOVS,
-        MOVT,
-        MRC,
-        MRRC,
-        MRS,
-        MSR,
-        MUL,
-        MULS,
-        MVN,
-        MVNS,
-        NOP,
-        ORN,
-        ORNS,
-        ORR,
-        ORRS,
-        PKHBT,
-        PKHTB,
-        PLD,
-        PLDW,
-        PLI,
-        POP,
-        PSSBB,
-        PUSH,
-        QADD,
-        QADD16,
-        QADD8,
-        QASX,
-        QDADD,
-        QDSUB,
-        QSAX,
-        QSUB,
-        QSUB16,
-        QSUB8,
-        RBIT,
-        REV,
-        REV16,
-        REVSH,
-        RFE,
-        RFEDA,
-        RFEDB,
-        RFEIA,
-        RFEIB,
-        ROR,
-        RORS,
-        RRX,
-        RRXS,
-        RSB,
-        RSBS,
-        RSC,
-        RSCS,
-        SADD16,
-        SADD8,
-        SASX,
-        SB,
-        SBC,
-        SBCS,
-        SBFX,
-        SDIV,
-        SEL,
-        SETEND,
-        SETPAN,
-        SEV,
-        SEVL,
-        SHADD16,
-        SHADD8,
-        SHASX,
-        SHSAX,
-        SHSUB16,
-        SHSUB8,
-        SMC,
-        SMLABB,
-        SMLABT,
-        SMLATB,
-        SMLATT,
-        SMLAD,
-        SMLADX,
-        SMLAL,
-        SMLALS,
-        SMLALBB,
-        SMLALBT,
-        SMLALTB,
-        SMLALTT,
-        SMLALD,
-        SMLALDX,
-        SMLAWB,
-        SMLAWT,
-        SMLSD,
-        SMLSDX,
-        SMLSLD,
-        SMLSLDX,
-        SMMLA,
-        SMMLAR,
-        SMMLS,
-        SMMLSR,
-        SMMUL,
-        SMMULR,
-        SMUAD,
-        SMUADX,
-        SMULBB,
-        SMULBT,
-        SMULTB,
-        SMULTT,
-        SMULL,
-        SMULLS,
-        SMULWB,
-        SMULWT,
-        SMUSD,
-        SMUSDX,
-        SRS,
-        SRSDA,
-        SRSDB,
-        SRSIA,
-        SRSIB,
-        SSAT,
-        SSAT16,
-        SSAX,
-        SSBB,
-        SSUB16,
-        SSUB8,
-        STC,
-        STL,
-        STLB,
-        STLEX,
-        STLEXB,
-        STLEXD,
-        STLEXH,
-        STLH,
-        STM,
-        STMIA,
-        STMEA,
-        STMDA,
-        STMED,
-        STMDB,
-        STMFD,
-        STMIB,
-        STMFA,
-        STR,
-        STRB,
-        STRBT,
-        STRD,
-        STREX,
-        STREXB,
-        STREXD,
-        STREXH,
-        STRH,
-        STRHT,
-        STRT,
-        SUB,
-        SUBS,
-        SVC,
-        SXTAB,
-        SXTAB16,
-        SXTAH,
-        SXTB,
-        SXTB16,
-        SXTH,
-        TBB,
-        TBH,
-        TEQ,
-        TSB,
-        TST,
-        UADD16,
-        UADD8,
-        UASX,
-        UBFX,
-        UDF,
-        UDIV,
-        UHADD16,
-        UHADD8,
-        UHASX,
-        UHSAX,
-        UHSUB16,
-        UHSUB8,
-        UMAAL,
-        UMLAL,
-        UMLALS,
-        UMULL,
-        UMULLS,
-        UQADD16,
-        UQADD8,
-        UQASX,
-        UQSAX,
-        UQSUB16,
-        UQSUB8,
-        USAD8,
-        USADA8,
-        USAT,
-        USAT16,
-        USAX,
-        USUB16,
-        USUB8,
-        UXTAB,
-        UXTAB16,
-        UXTAH,
-        UXTB,
-        UXTB16,
-        UXTH,
-        WFE,
-        WFI,
-        YIELD,
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_ascii_uppercase();
+        OPCODES
+            .iter()
+            .find(|(_, text)| *text == s)
+            .map(|&(code, _)| code)
+            .ok_or(())
     }
 }
 
-use crate::macros::args;
-
-impl Op {
-    pub fn code(&self) -> SyntaxKind {
-        use core::mem;
-        use SyntaxKind::*;
-        let code = unsafe { mem::transmute::<_, u16>(*self) };
-        let offset = unsafe { mem::transmute::<_, u16>(ADC) };
-        unsafe { mem::transmute(code + offset) }
-    }
-
-    pub fn args(&self) -> &[&[Arg]] {
-        use ArgKind::*;
-        match self {
-            Op::ADD => &[
-                &args!(<Reg> <Pc> <Imm>),
-                &args!({<Reg>} <Sp> <Imm>),
-                &args!({<Reg>} <Sp> <Reg> {<Shift>}),
-                &args!({<Reg>} <Reg> <Reg> <Shift> <Reg>),
-                &args!({<Reg>} <Reg> <Reg> {<Shift>}),
-                &args!({<Reg>} <Reg> <Imm>),
-            ],
-            _ => &[],
+macro_rules! opcodes {
+    (
+        $(
+            $(#[$meta:meta])*
+            $opid:ident
+        ),*
+        $(,)?
+    ) => {
+        #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+        pub enum Opcode {
+            $(
+                $(#[$meta])*
+                $opid,
+            )*
         }
-    }
+
+        impl Opcode {
+            pub fn as_str(&self) -> &str {
+                match self {
+                    $(Opcode::$opid => stringify!($opid),)*
+                }
+            }
+        }
+
+        pub const OPCODES: &[(Opcode, &str)] = &[
+            $((Opcode::$opid, stringify!($opid)),)*
+        ];
+    };
 }
+
+pub(self) use opcodes;
