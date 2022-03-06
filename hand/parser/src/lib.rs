@@ -1,11 +1,7 @@
-pub mod ast;
-
-mod event;
 mod grammar;
 mod parser;
 mod step;
 
-use event::StrStep;
 use lexer::LexedStr;
 use parser::{Parser, Source};
 use step::StrStep;
@@ -16,7 +12,7 @@ use syntax::{
 
 pub struct Parse {
     node: GreenNode,
-    errors: Vec<String>,
+    pub errors: Vec<String>,
 }
 
 impl Parse {
@@ -49,12 +45,30 @@ pub fn parse(text: &LexedStr) -> Parse {
 }
 
 #[test]
-fn it_works() {
+fn api() {
     let s = lexer::lex(
-        "; Hello world
-label add r0, r0, #1 ; adds two numbers together
-mov r2, #2
-mvn r2, #2",
+        r##"
+        /* A HAND program.
+         * /* Nested comments */ are supported
+         */
+
+        start:
+        STMDBAL SP!, {R0, R1}   ; save r0 and r1 (equivalent to PUSH {R0, R1})
+        ; operator case doesn't matter either
+        cmp r0, r1      // compare r0 and r1
+        // hex base is supported
+        ADDEQ r0, #0x1  // if r0 == r1: r0 += 1
+        BEQ end         // if r0 == r1: goto end
+        MUL r1, r0, #3  // r1 = r0 * 3
+        ; pop the saved registers
+        end
+        POP {R0, R1}
+
+        adr r2, data
+        LDRB r2, [r2, #2]
+        mov r3, r2, LSL #1
+
+        "##,
     );
     let p = parse(&s);
     let syn = p.syntax();
