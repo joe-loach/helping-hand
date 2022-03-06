@@ -110,7 +110,7 @@ impl<'a> Cursor<'a> {
             c @ '0'..='9' => {
                 // check for base prefix
                 if c == '0' {
-                    if let Some('x' | '&') = self.peek() {
+                    if let Some('x') = self.peek() {
                         self.eat(); // eat prefix
                         let digits =
                             self.eat_while(|c| matches!(c, '0'..='9' | 'a'..='z' | 'A'..='Z'));
