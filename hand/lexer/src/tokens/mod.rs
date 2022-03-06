@@ -82,6 +82,25 @@ impl<'a> Cursor<'a> {
                     _ => SLASH,
                 }
             }
+            // String
+            '"' => {
+                let mut prev = None;
+                loop {
+                    let c = self.eat();
+                    match c {
+                        // dont break if escaped
+                        Some('"') if prev != Some('\\') => break,
+                        // at EOF
+                        None => {
+                            self.error("String is not terminated");
+                            break
+                        }
+                        _ => ()
+                    }
+                    prev = c;
+                }
+                STRING
+            }
             // Ident
             c if c.is_xid_start() => {
                 self.eat_while(UnicodeXID::is_xid_continue);
