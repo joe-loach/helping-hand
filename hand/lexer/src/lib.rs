@@ -29,14 +29,31 @@ impl<'t> LexedStr<'t> {
 
         let mut pos = 0;
         for token in tokens::tokenise(text) {
-            let token_text = &text[pos..][..token.len];
+            let token_text = &text[pos..][..token.len].to_ascii_uppercase();
 
+            let mut split_id = None;
             let kind = match token.kind {
-                IDENT => SyntaxKind::from_keyword(token_text).unwrap_or(IDENT),
+                IDENT => {
+                    if let Some(kind) = SyntaxKind::from_register(token_text) {
+                        kind
+                    } else if let Some((kind, cond)) = SyntaxKind::from_opcode(token_text) {
+                        split_id = cond;
+                        kind
+                    } else {
+                        IDENT
+                    }
+                }
                 kind => kind,
             };
             res.push(kind, pos);
-            pos += token.len;
+
+            if let Some((offset, kind)) = split_id {
+                pos += offset;
+                res.push(kind, pos);
+                pos += token.len - offset;
+            } else {
+                pos += token.len;
+            }
 
             if let Some(msg) = token.error {
                 let token = res.len() as u32;
