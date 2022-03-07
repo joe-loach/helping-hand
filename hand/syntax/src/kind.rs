@@ -3,7 +3,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SyntaxKind {
     TOMBSTONE,
-    
+
     UNKNOWN,
     EOF,
     WHITESPACE,
@@ -32,11 +32,15 @@ pub enum SyntaxKind {
     OP,
     OPCODE,
     COND,
+    HAS_ARGS,
     ARG_LIST,
     REG_LIST,
     ARG,
-    ADDRESS,
-    OFFSET,
+    ADDR_OFF,
+    ADDR_POST,
+    ADDR_PRE,
+    OFFSET_IMM,
+    OFFSET_REG,
     SHIFT,
     IMMEDIATE,
     REGISTER,
@@ -80,13 +84,13 @@ impl SyntaxKind {
         Some(kind)
     }
 
-    pub fn from_opcode(s: &str) -> Option<(SyntaxKind, Option<(usize, SyntaxKind)>)> {
-        for &(_, code) in OPCODES {
+    pub fn from_opcode(s: &str) -> Option<(crate::Opcode, Option<(usize, SyntaxKind)>)> {
+        for &(op, code) in OPCODES {
             if let Some(rest) = s.strip_prefix(code) {
                 if rest.is_empty() {
-                    return Some((OPCODE, None));
+                    return Some((op, None));
                 } else if rest.parse::<Condition>().is_ok() {
-                    return Some((OPCODE, Some((code.len(), COND))));
+                    return Some((op, Some((code.len(), COND))));
                 }
             }
         }

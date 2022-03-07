@@ -48,6 +48,11 @@ impl Condition {
     }
 }
 
+impl Default for Condition {
+    fn default() -> Self {
+        Condition::AL
+    }
+}
 
 impl core::str::FromStr for Condition {
     type Err = ();

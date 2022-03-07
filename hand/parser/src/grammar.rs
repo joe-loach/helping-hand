@@ -43,22 +43,26 @@ fn statement(p: &mut Parser) {
     m.finish(p, STATEMENT);
 }
 
-/// OP ARG_LIST
+/// OP ARG_LIST?
 fn instr(p: &mut Parser) {
     assert!(p.at(OPCODE));
     let m = p.start();
-    op(p);
-    arg_list(p);
+    let has_args = op(p);
+    if has_args {
+        arg_list(p);
+    }
     m.finish(p, INSTR);
 }
 
-/// OPCODE COND?
-fn op(p: &mut Parser) {
+/// OPCODE COND? HAS_ARGS?
+fn op(p: &mut Parser) -> bool {
     assert!(p.at(OPCODE));
     let m = p.start();
     p.bump(OPCODE);
     p.eat(COND);
+    let args = p.eat(HAS_ARGS);
     m.finish(p, OP);
+    args
 }
 
 /// ARG, ARG ...
@@ -110,40 +114,50 @@ fn reg_list(p: &mut Parser) {
     m.finish(p, REG_LIST);
 }
 
-/// offset: [REGISTER, OFFSET]
-/// post  : [REGISTER, OFFSET]!
-/// pre   : [REGISTER], OFFSET
+/// offset: [REGISTER(, OFFSET)?]
+/// pre   : [REGISTER, OFFSET]!
+/// post  : [REGISTER], OFFSET
 fn address(p: &mut Parser) {
     assert!(p.at(OPEN_SQUARE));
     let m = p.start();
     p.bump(OPEN_SQUARE);
     register(p);
-    if p.eat(COMMA) {
+    let kind = if p.eat(COMMA) {
         offset(p);
         p.expect(CLOSE_SQUARE);
-        p.eat(BANG);
+        if p.eat(BANG) {
+            ADDR_PRE
+        } else {
+            ADDR_OFF
+        }
     } else {
         p.expect(CLOSE_SQUARE);
-        p.expect(COMMA);
-        offset(p);
-    }
-    m.finish(p, ADDRESS);
+        if p.eat(COMMA) {
+            offset(p);
+            ADDR_POST
+        } else {
+            ADDR_OFF
+        }
+    };
+    m.finish(p, kind);
 }
 
 /// IMMEDIATE
 /// SIGN REGISTER (, SHIFT)?
 fn offset(p: &mut Parser) {
     let m = p.start();
-    if p.at(HASH) {
+    let kind = if p.at(HASH) {
         immediate(p);
+        OFFSET_IMM
     } else {
         sign(p);
         register(p);
         if p.eat(COMMA) {
             shift(p);
         }
-    }
-    m.finish(p, OFFSET);
+        OFFSET_REG
+    };
+    m.finish(p, kind);
 }
 
 /// OP (REGISTER | IMMEDIATE)?
@@ -155,8 +169,8 @@ fn shift(p: &mut Parser) {
     match code {
         "RRX" => (),
         "ASR" | "LSL" | "LSR" | "ROR" => match p.current() {
-            curr if curr.is_register() => register(p),
             HASH => immediate(p),
+            curr if curr.is_register() => register(p),
             _ => {
                 let m = p.start();
                 p.error("expected a register or an immediate");

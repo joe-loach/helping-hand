@@ -10,7 +10,7 @@ opcodes! {
     MOV,
     MUL,
     MVN,
-    //NOP, breaks everything! expects to find arguments when it doesnt take any
+    NOP false,
     POP,
     PUSH,
     ROR,
@@ -41,7 +41,7 @@ macro_rules! opcodes {
     (
         $(
             $(#[$meta:meta])*
-            $opid:ident
+            $opid:ident $($args:expr)?
         ),*
         $(,)?
     ) => {
@@ -57,6 +57,12 @@ macro_rules! opcodes {
             pub fn as_str(&self) -> &str {
                 match self {
                     $(Opcode::$opid => stringify!($opid),)*
+                }
+            }
+
+            pub fn has_args(&self) -> bool {
+                match self {
+                    $(Opcode::$opid => true $(&& $args)?,)*
                 }
             }
         }

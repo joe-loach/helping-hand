@@ -31,14 +31,16 @@ impl<'t> LexedStr<'t> {
         for token in tokens::tokenise(text) {
             let token_text = &text[pos..][..token.len].to_ascii_uppercase();
 
+            let mut has_args = true;
             let mut split_id = None;
             let kind = match token.kind {
                 IDENT => {
                     if let Some(kind) = SyntaxKind::from_register(token_text) {
                         kind
-                    } else if let Some((kind, cond)) = SyntaxKind::from_opcode(token_text) {
+                    } else if let Some((op, cond)) = SyntaxKind::from_opcode(token_text) {
+                        has_args = op.has_args();
                         split_id = cond;
-                        kind
+                        OPCODE
                     } else {
                         IDENT
                     }
@@ -53,6 +55,10 @@ impl<'t> LexedStr<'t> {
                 pos += token.len - offset;
             } else {
                 pos += token.len;
+            }
+
+            if kind == OPCODE && has_args {
+                res.push(HAS_ARGS, pos);
             }
 
             if let Some(msg) = token.error {

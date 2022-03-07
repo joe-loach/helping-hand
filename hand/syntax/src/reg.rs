@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Register {
     R0,
     R1,
@@ -41,6 +41,16 @@ impl Register {
             R13 | SP => 0b1101,
             R14 | LR => 0b1110,
             R15 | PC => 0b1111,
+        }
+    }
+
+    #[must_use]
+    pub fn to_numbered(self) -> Self {
+        match self {
+            Register::SP => Register::R13,
+            Register::LR => Register::R14,
+            Register::PC => Register::R15,
+            _ => self
         }
     }
 }
