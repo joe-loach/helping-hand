@@ -22,7 +22,7 @@ pub enum Register {
 }
 
 impl Register {
-    pub fn value(&self) -> u32 {
+    pub fn value(&self) -> u8 {
         use Register::*;
         match self {
             R0 => 0b0000,
