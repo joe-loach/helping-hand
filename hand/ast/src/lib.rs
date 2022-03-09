@@ -3,8 +3,8 @@ mod token;
 
 mod validation;
 
-use node::*;
-use token::*;
+pub use node::*;
+pub use token::*;
 
 pub fn ast(parse: parser::Parse) -> Root {
     Root(parse.syntax())
@@ -222,10 +222,10 @@ fn api() {
     }
 
     fn print_imm(imm: Immediate) {
-            print!(
-                "#{}{}",
-                if imm.sign().is_positive() { "" } else { "-" },
+        print!(
+            "#{}{}",
+            if imm.sign().is_positive() { "" } else { "-" },
             imm.value()
-            )
+        )
     }
 }
