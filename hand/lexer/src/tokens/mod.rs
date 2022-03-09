@@ -116,6 +116,7 @@ impl<'a> Cursor<'a> {
                             self.eat_while(|c| matches!(c, '0'..='9' | 'a'..='z' | 'A'..='Z'));
                         if digits == 0 {
                             self.error("Missing digits after base prefix");
+                            return UNKNOWN;
                         }
                     }
                 }

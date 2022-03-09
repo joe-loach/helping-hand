@@ -222,12 +222,10 @@ fn api() {
     }
 
     fn print_imm(imm: Immediate) {
-        if let Some(value) = imm.value() {
             print!(
                 "#{}{}",
                 if imm.sign().is_positive() { "" } else { "-" },
-                value
+            imm.value()
             )
-        }
     }
 }

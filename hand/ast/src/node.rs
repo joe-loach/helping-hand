@@ -118,10 +118,10 @@ impl Immediate {
         token(self.node()).unwrap()
     }
 
-    pub fn value(&self) -> Option<u64> {
+    pub fn value(&self) -> u32 {
         let lit = self.literal();
         let number = lit.text().trim_start_matches("0x");
-        number.parse().ok()
+        number.parse().unwrap()
     }
 }
 
