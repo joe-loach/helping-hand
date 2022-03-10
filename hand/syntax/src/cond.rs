@@ -5,11 +5,11 @@ pub enum Condition {
     /// Not equal (Z == 0)
     NE = 0b0001,
     /// Carry set (C == 1)
-    /// 
+    ///
     /// Also called "HS" (unsigned higher or same)
     CS = 0b0010,
     /// Carry clear (C == 0)
-    /// 
+    ///
     /// Also called "LO" (unsigned lower)
     CC = 0b0011,
     /// Minus, negative (N == 1)

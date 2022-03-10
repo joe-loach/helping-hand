@@ -1,6 +1,6 @@
-mod reg;
 mod addr;
 mod arg;
+mod reg;
 mod shift;
 
 use syntax::SyntaxKind::*;

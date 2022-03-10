@@ -93,9 +93,9 @@ impl<'a> Cursor<'a> {
                         // at EOF
                         None => {
                             self.error("String is not terminated");
-                            break
+                            break;
                         }
-                        _ => ()
+                        _ => (),
                     }
                     prev = c;
                 }

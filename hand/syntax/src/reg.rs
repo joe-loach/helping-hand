@@ -50,7 +50,7 @@ impl Register {
             Register::SP => Register::R13,
             Register::LR => Register::R14,
             Register::PC => Register::R15,
-            _ => self
+            _ => self,
         }
     }
 }

@@ -1,5 +1,5 @@
-use syntax::SyntaxToken;
 use syntax::SyntaxKind::*;
+use syntax::SyntaxToken;
 
 pub trait Token: Sized {
     fn token(&self) -> &SyntaxToken;
