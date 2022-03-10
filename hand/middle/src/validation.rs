@@ -1,9 +1,22 @@
 use super::*;
 
-pub(super) fn shape(cursor: &mut Cursor) -> bool {
-    use Atom::*;
+#[allow(dead_code)]
+pub enum Shape {
+    Unknown,
+    Normal,
+    Immediate,
+    Literal,
+    Register,
+    Rsr,
+    ImmediateSp,
+    ImmediatePc,
+    RegisterSp,
+    MultipleRegisters,
+    SingleRegisters,
+}
 
-    cursor.bump(Label);
+pub(super) fn shape(cursor: &mut Cursor) -> Shape {
+    use Atom::*;
 
     fn err_rewind<T>(cursor: &mut Cursor, f: impl FnOnce(&mut Cursor) -> Option<T>) -> Option<T> {
         let c = cursor.checkpoint();
@@ -14,94 +27,103 @@ pub(super) fn shape(cursor: &mut Cursor) -> bool {
         res
     }
 
+    cursor.bump(Label);
+
     if let Some(op) = cursor.eat(Instruction) {
         let op = syn::<syntax::Opcode>(op);
         cursor.bump(Condition);
 
         use syntax::Opcode::*;
 
-        // TODO: for the love of god write a macro to make this smaller
-        // and easier to maintain!
-        // please Joe
-        match op {
+        let shape = match op {
             ADC => {
-                cursor.eat(Register); // {<Rd>}
                 err_rewind(cursor, |cursor| {
-                    cursor.eat(Register)?; // <Rn>
+                    cursor.eat(Register)?; // {<Rd>}
+                    cursor.eat(Register); // <Rn>
+                    if cursor.eat(Sign)? != crate::Sign::Positive as u32 {
+                        return None;
+                    }
                     cursor.eat(Value)?; // #<const>
-                    Some(())
+                    Some(Shape::Immediate)
                 })
                 .or_else(|| {
                     err_rewind(cursor, |cursor| {
-                        cursor.eat(Register)?; // <Rn>
+                        cursor.eat(Register)?; // {<Rd>}
+                        cursor.eat(Register); // <Rn>
                         cursor.eat(Register)?; // <Rm>
-                        match cursor.eat(Shift) {
-                            // RRX
-                            Some(0b11) => (),
-                            // <shift> #<amount>
-                            Some(_) => {
-                                cursor.eat(Value)?;
+                        if let Some(shift) = cursor.eat(Shift) {
+                            cursor.eat(Sign)?;
+                            match (shift, cursor.eat(Value)) {
+                                (0b11, None) => {}                                    // RRX
+                                (0b00 | 0b11, Some(x)) if (1..=31).contains(&x) => {} // LSL | ROR
+                                (0b01 | 0b10, Some(x)) if (1..=32).contains(&x) => {} // LSR | ASR
+                                _ => return None,
                             }
-                            // {}
-                            None => (),
                         }
-                        Some(())
+                        Some(Shape::Register)
                     })
                 })
                 .or_else(|| {
                     err_rewind(cursor, |cursor| {
-                        cursor.eat(Register)?; // <Rn>
+                        cursor.eat(Register)?; // {<Rd>}
+                        cursor.eat(Register); // <Rn>
                         cursor.eat(Register)?; // <Rm>
                         cursor.eat(Shift)?; // <shift>
                         cursor.eat(Register)?; // <Rs>
-                        Some(())
+                        Some(Shape::Rsr)
                     })
                 })
-                .is_some()
             }
             ADCS => {
-                cursor.eat(Register); // {<Rd>}
                 err_rewind(cursor, |cursor| {
-                    cursor.eat(Register)?; // <Rn>
+                    cursor.eat(Register)?; // {<Rd>}
+                    cursor.eat(Register); // <Rn>
+                    if cursor.eat(Sign)? != crate::Sign::Positive as u32 {
+                        return None;
+                    }
                     cursor.eat(Value)?; // #<const>
-                    Some(())
+                    Some(Shape::Immediate)
                 })
                 .or_else(|| {
                     err_rewind(cursor, |cursor| {
-                        cursor.eat(Register)?; // <Rn>
+                        cursor.eat(Register)?; // {<Rd>}
+                        cursor.eat(Register); // <Rn>
                         cursor.eat(Register)?; // <Rm>
-                        match cursor.eat(Shift) {
-                            // RRX
-                            Some(0b11) => (),
-                            // <shift> #<amount>
-                            Some(_) => {
-                                cursor.eat(Value)?;
+                        if let Some(shift) = cursor.eat(Shift) {
+                            cursor.eat(Sign)?;
+                            match (shift, cursor.eat(Value)) {
+                                (0b11, None) => {}                                    // RRX
+                                (0b00 | 0b11, Some(x)) if (1..=31).contains(&x) => {} // LSL | ROR
+                                (0b01 | 0b10, Some(x)) if (1..=32).contains(&x) => {} // LSR | ASR
+                                _ => return None,
                             }
-                            // {}
-                            None => (),
                         }
-                        Some(())
+                        Some(Shape::Register)
                     })
                 })
                 .or_else(|| {
                     err_rewind(cursor, |cursor| {
-                        cursor.eat(Register)?; // <Rn>
+                        cursor.eat(Register)?; // {<Rd>}
+                        cursor.eat(Register); // <Rn>
                         cursor.eat(Register)?; // <Rm>
                         cursor.eat(Shift)?; // <shift>
                         cursor.eat(Register)?; // <Rs>
-                        Some(())
+                        Some(Shape::Rsr)
                     })
                 })
-                .is_some()
-            },
+            }
             ADD => {
                 // TODO: add is weird, it has special cases for PC and SP
                 // chaining only works if it is defined in specificity:
                 // going from MOST -> LEAST
-                true
-            },
+                todo!()
+            }
             ADDS => todo!(),
-            ADR => todo!(),
+            ADR => err_rewind(cursor, |cursor| {
+                cursor.eat(Register)?;
+                cursor.eat(Label)?;
+                Some(Shape::Normal)
+            }),
             AND => todo!(),
             ASR => todo!(),
             ASRS => todo!(),
@@ -149,7 +171,7 @@ pub(super) fn shape(cursor: &mut Cursor) -> bool {
             MULS => todo!(),
             MVN => todo!(),
             MVNS => todo!(),
-            NOP => true,
+            NOP => Some(Shape::Normal),
             ORR => todo!(),
             OORS => todo!(),
             POP => todo!(),
@@ -184,10 +206,18 @@ pub(super) fn shape(cursor: &mut Cursor) -> bool {
             TEQ => todo!(),
             TST => todo!(),
             UDIV => todo!(),
+        };
+
+        // cursor might have more arguments to parse,
+        // therefore the shape doesnt fit
+        if cursor.finished() {
+            shape.unwrap_or(Shape::Unknown)
+        } else {
+            Shape::Unknown
         }
     } else {
         // OK
-        true
+        Shape::Normal
     }
 }
 

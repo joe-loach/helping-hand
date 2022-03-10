@@ -57,6 +57,10 @@ impl<'a> Cursor<'a> {
             None => panic!("bumping {atom:?} @ {} failed", self.pos),
         }
     }
+
+    pub fn finished(&self) -> bool {
+        self.current().is_none()
+    }
 }
 
 impl<'a> Iterator for Cursor<'a> {

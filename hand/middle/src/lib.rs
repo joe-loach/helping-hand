@@ -14,11 +14,19 @@ pub fn lower(root: ast::Root) -> IR {
     lowering::ir(root, labels)
 }
 
-pub fn validate(ir: &IR) -> bool {
+pub fn validate(ir: &IR) -> Vec<String> {
+    let mut errors = Vec::new();
     let mut i = 0;
     while let Some(stmt) = ir.stmt(i) {
-        let _stmt = validation::shape(&mut Cursor::new(stmt));
+        match validation::shape(&mut Cursor::new(stmt)) {
+            validation::Shape::Unknown => {
+                errors.push(String::from("Unkown shape for Instruction"))
+            },
+            shape => {
+                let _ = shape;
+            }
+        }
         i += 1;
     }
-    true
+    errors
 }
