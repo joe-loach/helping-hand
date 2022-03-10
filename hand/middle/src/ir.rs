@@ -12,6 +12,14 @@ impl Stmt<'_> {
     pub fn get(&self, index: usize) -> Option<(Atom, u32)> {
         self.0.get(index).map(|&atom| (atom, self.1[index]))
     }
+
+    pub fn atoms(&self) -> &[Atom] {
+        self.0
+    }
+
+    pub fn data(&self) -> &[u32] {
+        self.1
+    }
 }
 
 impl IR {
