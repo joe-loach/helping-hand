@@ -77,7 +77,7 @@ pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
                                 LSL => 0b00,
                                 LSR => 0b01,
                                 ASR => 0b10,
-                                RRX => 0b11,
+                                RRX | ROR => 0b11,
                                 _ => unreachable!(),
                             };
                             ir.push(Shift, value);
@@ -160,7 +160,7 @@ pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
                                                 LSL => 0b00,
                                                 LSR => 0b01,
                                                 ASR => 0b10,
-                                                RRX => 0b11,
+                                                RRX | ROR => 0b11,
                                                 _ => unreachable!(),
                                             };
                                             ir.push(Shift, value);
