@@ -101,6 +101,17 @@ pub(super) fn validate(root: &Root) -> Vec<Error> {
                     )
                 }
             }
+            IMMEDIATE => {
+                let imm = Immediate(node.clone());
+                if let Err(e) = imm.value() {
+                    push(
+                        &mut errors,
+                        Error,
+                        format!("couldn't parse int, {}", e),
+                        imm.node().clone(),
+                    )
+                }
+            }
             _ => (),
         }
     }

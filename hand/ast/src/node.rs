@@ -118,10 +118,10 @@ impl Immediate {
         token(self.node()).unwrap()
     }
 
-    pub fn value(&self) -> u32 {
+    pub fn value(&self) -> Result<u32, std::num::ParseIntError> {
         let lit = self.literal();
         let number = lit.text().trim_start_matches("0x");
-        number.parse().unwrap()
+        number.parse()
     }
 }
 
