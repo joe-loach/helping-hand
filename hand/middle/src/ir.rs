@@ -4,6 +4,7 @@ pub struct IR {
     stmts: Vec<u32>,
     atoms: Vec<Atom>,
     data: Vec<u32>,
+    errors: Vec<String>,
 }
 
 pub struct Stmt<'a>(&'a [Atom], &'a [u32]);
@@ -28,6 +29,7 @@ impl IR {
             stmts: vec![0],
             atoms: Vec::new(),
             data: Vec::new(),
+            errors: Vec::new(),
         }
     }
 
@@ -38,6 +40,11 @@ impl IR {
     pub(crate) fn push(&mut self, atom: Atom, data: u32) {
         self.atoms.push(atom);
         self.data.push(data);
+    }
+
+    pub(crate) fn error(&mut self, msg: impl Into<String>) {
+        self.errors.push(msg.into());
+        self.push(Atom::Error, self.errors.len() as u32);
     }
 
     pub fn stmt(&self, i: usize) -> Option<Stmt<'_>> {
