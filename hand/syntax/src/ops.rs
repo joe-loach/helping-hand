@@ -1,4 +1,3 @@
-// TODO: finish
 opcodes! {
     ADC     = 0b0000_0000_1010_0000_0000_0000_0000_0000; // Add with carry
     ADCS    = 0b0000_0000_1011_0000_0000_0000_0000_0000;
@@ -70,12 +69,14 @@ opcodes! {
     SBC     = 0b0000_0000_1100_0000_0000_0000_0000_0000; // Subtract with Carry
     SBCS    = 0b0000_0000_1101_0000_0000_0000_0000_0000;
     SDIV    = 0b0000_0111_0001_0000_1111_0000_0001_0000; // Signed Divide
-    STM     = 0b0000_1000_0000_0000_0000_0000_0000_0000; // Store Mutliple
-    STMIA   = 0b0000_1000_0000_0000_0000_0000_0000_0000; // Store Mutliple Increment After
-    STMEA   = 0b0000_1000_0000_0000_0000_0000_0000_0000; // Store Mutliple Empty Ascending
+    STM     = 0b0000_1000_1000_0000_0000_0000_0000_0000; // Store Mutliple
+    STMIA   = 0b0000_1000_1000_0000_0000_0000_0000_0000; // Store Mutliple Increment After
+    STMEA   = 0b0000_1000_1000_0000_0000_0000_0000_0000; // Store Mutliple Empty Ascending
+    STMDA   = 0b0000_1000_0000_0000_0000_0000_0000_0000; // Store Multiple Decrement After
+    STMED   = 0b0000_1000_0000_0000_0000_0000_0000_0000; // Store Multiple Empty Descending
     STMDB   = 0b0000_1001_0000_0000_0000_0000_0000_0000; // Store Multiple Decrement Before
     STMFD   = 0b0000_1001_0000_0000_0000_0000_0000_0000; // Store Multiple Full Descending
-    STMID   = 0b0000_1001_1000_0000_0000_0000_0000_0000; // Store Mutliple Increment Before
+    STMIB   = 0b0000_1001_1000_0000_0000_0000_0000_0000; // Store Mutliple Increment Before
     STMFA   = 0b0000_1001_1000_0000_0000_0000_0000_0000; // Store Mutliple Full Ascending
     STR     = 0b0000_0100_0000_0000_0000_0000_0000_0000; // Store Register
     STRB    = 0b0000_0100_0100_0000_0000_0000_0000_0000; // Store Register Byte
