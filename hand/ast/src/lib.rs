@@ -225,7 +225,7 @@ fn api() {
         print!(
             "#{}{}",
             if imm.sign().is_positive() { "" } else { "-" },
-            imm.value()
+            imm.value().unwrap_or(u32::MAX)
         )
     }
 }
