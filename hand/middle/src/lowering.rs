@@ -1,25 +1,12 @@
-/// The mode of the address
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum Address {
-    Offset,
-    PreInc,
-    PostInc,
-}
-/// The mode of offset
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum Offset {
-    Val,
-    Reg,
-}
+pub const ADDR_OFFSET: u32 = 0;
+pub const ADDR_PREINC: u32 = 1;
+pub const ADDR_POSTINC: u32 = 2;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum Sign {
-    Positive,
-    Negative,
-}
+pub const OFF_VAL: u32 = 0;
+pub const OFF_REG: u32 = 1;
+
+pub const SIGN_POS: u32 = 1;
+pub const SIGN_NEG: u32 = 0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Atom {
@@ -33,6 +20,7 @@ pub enum Atom {
     Offset,
     Sign,
     RegisterList,
+    Error,
 }
 
 use std::collections::HashMap;
@@ -69,120 +57,49 @@ pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
                 for arg in args {
                     match arg.kind() {
                         ast::ArgKind::Register(reg) => {
-                            ir.push(Register, reg.syntax().value() as u32);
+                            register(&mut ir, reg);
                         }
-                        ast::ArgKind::Shift(shift) => {
-                            use syntax::Opcode::*;
-                            let value = match shift.op().code().syntax() {
-                                LSL => 0b00,
-                                LSR => 0b01,
-                                ASR => 0b10,
-                                RRX | ROR => 0b11,
-                                _ => unreachable!(),
-                            };
-                            ir.push(Shift, value);
-                            if let Some(data) = shift.data() {
-                                match data {
-                                    ast::ShiftData::Register(reg) => {
-                                        ir.push(Register, reg.syntax().value() as u32);
-                                    }
-                                    ast::ShiftData::Immediate(imm) => {
-                                        ir.push(
-                                            Sign,
-                                            match imm.sign().is_positive() {
-                                                true => crate::Sign::Positive,
-                                                false => crate::Sign::Negative,
-                                            } as u32,
-                                        );
-                                        ir.push(Value, imm.value());
-                                    }
-                                }
-                            }
+                        ast::ArgKind::Shift(sft) => {
+                            shift(&mut ir, sft);
                         }
                         ast::ArgKind::Label(lbl) => {
                             if let Some(&pos) = labels.get(lbl.name().ident().text()) {
                                 ir.push(Label, pos);
                             } else {
-                                ir.push(Label, u32::MAX);
+                                ir.error("Label is not defined");
                             }
                         }
                         ast::ArgKind::Immediate(imm) => {
-                            ir.push(
-                                Sign,
-                                match imm.sign().is_positive() {
-                                    true => (crate::Sign::Positive),
-                                    false => (crate::Sign::Negative),
-                                } as u32,
-                            );
-                            ir.push(Value, imm.value())
+                            immediate(&mut ir, imm);
                         }
                         ast::ArgKind::Address(addr) => {
                             let offset = match addr.kind() {
                                 ast::AddrKind::Offset(a) => {
-                                    ir.push(Address, (crate::Address::Offset) as u32);
+                                    ir.push(Address, ADDR_OFFSET);
                                     a.offset()
                                 }
                                 ast::AddrKind::PreInc(a) => {
-                                    ir.push(Address, (crate::Address::PreInc) as u32);
+                                    ir.push(Address, ADDR_PREINC);
                                     Some(a.offset())
                                 }
                                 ast::AddrKind::PostInc(a) => {
-                                    ir.push(Address, (crate::Address::PostInc) as u32);
+                                    ir.push(Address, ADDR_POSTINC);
                                     Some(a.offset())
                                 }
                             };
-                            ir.push(Register, addr.base().syntax().value() as u32);
+                            register(&mut ir, addr.base());
                             if let Some(offset) = offset {
                                 match offset.kind() {
                                     ast::OffsetKind::Immediate(o) => {
-                                        let imm = o.immediate();
-                                        ir.push(
-                                            Sign,
-                                            match imm.sign().is_positive() {
-                                                true => (crate::Sign::Positive),
-                                                false => (crate::Sign::Negative),
-                                            } as u32,
-                                        );
-                                        ir.push(Value, imm.value())
+                                        ir.push(Offset, OFF_VAL);
+                                        immediate(&mut ir, o.immediate());
                                     }
                                     ast::OffsetKind::Register(o) => {
-                                        ir.push(
-                                            Sign,
-                                            match o.sign().is_positive() {
-                                                true => crate::Sign::Positive,
-                                                false => crate::Sign::Negative,
-                                            } as u32,
-                                        );
-                                        ir.push(Register, o.base().syntax().value() as u32);
-                                        if let Some(shift) = o.shift() {
-                                            use syntax::Opcode::*;
-                                            let value = match shift.op().code().syntax() {
-                                                LSL => 0b00,
-                                                LSR => 0b01,
-                                                ASR => 0b10,
-                                                RRX | ROR => 0b11,
-                                                _ => unreachable!(),
-                                            };
-                                            ir.push(Shift, value);
-                                            if let Some(data) = shift.data() {
-                                                let (atom, data) = match data {
-                                                    ast::ShiftData::Register(reg) => {
-                                                        (Register, reg.syntax().value() as u32)
-                                                    }
-                                                    ast::ShiftData::Immediate(imm) => {
-                                                        ir.push(
-                                                            Sign,
-                                                            match imm.sign().is_positive() {
-                                                                true => crate::Sign::Positive,
-                                                                false => crate::Sign::Negative,
-                                                            }
-                                                                as u32,
-                                                        );
-                                                        (Value, imm.value())
-                                                    }
-                                                };
-                                                ir.push(atom, data);
-                                            }
+                                        ir.push(Offset, OFF_REG);
+                                        sign(&mut ir, o.sign());
+                                        register(&mut ir, o.base());
+                                        if let Some(sft) = o.shift() {
+                                            shift(&mut ir, sft);
                                         }
                                     }
                                 }
@@ -204,7 +121,55 @@ pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
         ir.finish();
         pos += 4;
     }
-    ir
+    return ir;
+
+    fn sign(ir: &mut IR, sign: ast::Sign) {
+        ir.push(
+            Sign,
+            match sign.is_positive() {
+                true => SIGN_POS,
+                false => SIGN_NEG,
+            },
+        )
+    }
+
+    fn register(ir: &mut IR, reg: ast::Register) {
+        ir.push(Register, reg.syntax().value() as u32);
+    }
+
+    fn immediate(ir: &mut IR, imm: ast::Immediate) {
+        sign(ir, imm.sign());
+        match imm.value() {
+            Ok(value) => {
+                ir.push(Value, value);
+            }
+            Err(e) => {
+                ir.error(format!("Immmediate value couldn't be parsed, {e}"));
+            }
+        }
+    }
+
+    fn shift(ir: &mut IR, shift: ast::Shift) {
+        use syntax::Opcode::*;
+        let value = match shift.op().code().syntax() {
+            LSL => 0b00,
+            LSR => 0b01,
+            ASR => 0b10,
+            RRX | ROR => 0b11,
+            _ => unreachable!(),
+        };
+        ir.push(Shift, value);
+        if let Some(data) = shift.data() {
+            match data {
+                ast::ShiftData::Register(reg) => {
+                    register(ir, reg);
+                }
+                ast::ShiftData::Immediate(imm) => {
+                    immediate(ir, imm);
+                }
+            }
+        }
+    }
 }
 
 pub fn labels(root: &ast::Root) -> HashMap<String, u32> {
