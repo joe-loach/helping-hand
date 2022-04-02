@@ -3,7 +3,7 @@
 mod cursor;
 mod ir;
 mod lowering;
-mod validation;
+mod shape;
 
 pub use cursor::Cursor;
 pub use ir::*;
