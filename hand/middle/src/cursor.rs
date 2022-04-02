@@ -10,11 +10,11 @@ impl Checkpoint {
 
 pub struct Cursor<'a> {
     pos: usize,
-    stmt: Stmt<'a>,
+    stmt: &'a Stmt<'a>,
 }
 
 impl<'a> Cursor<'a> {
-    pub fn new(stmt: Stmt<'a>) -> Self {
+    pub fn new(stmt: &'a Stmt<'a>) -> Self {
         Cursor { pos: 0, stmt }
     }
 
