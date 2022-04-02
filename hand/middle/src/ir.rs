@@ -1,12 +1,5 @@
 use crate::Atom;
 
-pub struct IR {
-    stmts: Vec<u32>,
-    atoms: Vec<Atom>,
-    data: Vec<u32>,
-    errors: Vec<String>,
-}
-
 pub struct Stmt<'a>(&'a [Atom], &'a [u32]);
 
 impl Stmt<'_> {
@@ -21,6 +14,13 @@ impl Stmt<'_> {
     pub fn data(&self) -> &[u32] {
         self.1
     }
+}
+
+pub struct IR {
+    stmts: Vec<u32>,
+    atoms: Vec<Atom>,
+    data: Vec<u32>,
+    errors: Vec<String>,
 }
 
 impl IR {
@@ -55,6 +55,10 @@ impl IR {
         } else {
             None
         }
+    }
+
+    pub fn iter(&self) -> Iter {
+        Iter::new(self)
     }
 }
 
