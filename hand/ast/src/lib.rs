@@ -6,6 +6,8 @@ mod validation;
 pub use node::*;
 pub use token::*;
 
+pub use validation::{Error, Level};
+
 pub fn ast(parse: parser::Parse) -> Root {
     Root(parse.syntax())
 }
