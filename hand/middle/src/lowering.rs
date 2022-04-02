@@ -1,12 +1,20 @@
-pub const ADDR_OFFSET: u32 = 0;
-pub const ADDR_PREINC: u32 = 1;
-pub const ADDR_POSTINC: u32 = 2;
+pub mod consts {
+    pub mod address {
+        pub const OFFSET: u32 = 0;
+        pub const PREINC: u32 = 1;
+        pub const POSTINC: u32 = 2;
+    }
 
-pub const OFF_VAL: u32 = 0;
-pub const OFF_REG: u32 = 1;
+    pub mod offset {
+        pub const VALUE: u32 = 0;
+        pub const REGISTER: u32 = 1;
+    }
 
-pub const SIGN_POS: u32 = 1;
-pub const SIGN_NEG: u32 = 0;
+    pub mod sign {
+        pub const POSITIVE: u32 = 1;
+        pub const NEGATIVE: u32 = 0;
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Atom {
@@ -25,13 +33,13 @@ pub enum Atom {
 
 use std::collections::HashMap;
 
-use crate::IR;
+use crate::{IR, consts::*};
 use ast::Token;
 
 /// Outputs IR in the form:
 ///
 /// LABEL (INSTRUCTION CONDITION ARGS?)?
-pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
+pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
     use Atom::*;
 
     let mut ir = IR::new();
@@ -75,15 +83,15 @@ pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
                         ast::ArgKind::Address(addr) => {
                             let offset = match addr.kind() {
                                 ast::AddrKind::Offset(a) => {
-                                    ir.push(Address, ADDR_OFFSET);
+                                    ir.push(Address, address::OFFSET);
                                     a.offset()
                                 }
                                 ast::AddrKind::PreInc(a) => {
-                                    ir.push(Address, ADDR_PREINC);
+                                    ir.push(Address, address::PREINC);
                                     Some(a.offset())
                                 }
                                 ast::AddrKind::PostInc(a) => {
-                                    ir.push(Address, ADDR_POSTINC);
+                                    ir.push(Address, address::POSTINC);
                                     Some(a.offset())
                                 }
                             };
@@ -91,11 +99,11 @@ pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
                             if let Some(offset) = offset {
                                 match offset.kind() {
                                     ast::OffsetKind::Immediate(o) => {
-                                        ir.push(Offset, OFF_VAL);
+                                        ir.push(Offset, offset::VALUE);
                                         immediate(&mut ir, o.immediate());
                                     }
                                     ast::OffsetKind::Register(o) => {
-                                        ir.push(Offset, OFF_REG);
+                                        ir.push(Offset, offset::REGISTER);
                                         sign(&mut ir, o.sign());
                                         register(&mut ir, o.base());
                                         if let Some(sft) = o.shift() {
@@ -127,8 +135,8 @@ pub(super) fn ir(root: ast::Root, labels: HashMap<String, u32>) -> IR {
         ir.push(
             Sign,
             match sign.is_positive() {
-                true => SIGN_POS,
-                false => SIGN_NEG,
+                true => sign::POSITIVE,
+                false => sign::NEGATIVE,
             },
         )
     }
