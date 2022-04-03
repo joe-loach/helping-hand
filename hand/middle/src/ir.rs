@@ -14,6 +14,10 @@ impl Stmt<'_> {
     pub fn data(&self) -> &[u32] {
         self.1
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&Atom, &u32)> {
+        self.atoms().iter().zip(self.data().iter())
+    }
 }
 
 pub struct IR {
