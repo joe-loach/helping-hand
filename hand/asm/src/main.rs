@@ -50,12 +50,54 @@ fn run() -> anyhow::Result<()> {
 
     let ir = middle::lower(root);
     if emit == cli::Emit::IR {
-        // for stmt in &ir {
-        //     for atom in stmt.atoms() {
-        //         print!("{atom:?} ");
-        //     }
-        //     println!();
-        // }
+        use middle::Atom;
+        for stmt in &ir {
+            for (&atom, &data) in stmt.iter() {
+                match atom {
+                    Atom::Instruction => {
+                        let op = middle::syn::<syntax::Opcode>(data);
+                        print!("{}", op.as_str());
+                    }
+                    Atom::Condition => {
+                        let cond = middle::syn::<syntax::Condition>(data);
+                        print!(
+                            "{} ",
+                            if cond != syntax::Condition::AL {
+                                cond.as_str()
+                            } else {
+                                ""
+                            }
+                        );
+                    }
+                    Atom::Shift => print!("{} ", data),
+                    Atom::Register => {
+                        let reg = middle::syn::<syntax::Register>(data);
+                        print!("{} ", reg.as_str());
+                    }
+                    Atom::Label => print!("{}: ", data),
+                    Atom::Value => print!("{} ", data),
+                    Atom::Address => print!("@ "),
+                    Atom::Offset => print!("+= "),
+                    Atom::Sign => {
+                        let sign = middle::syn::<syntax::Sign>(data);
+                        print!(
+                            "{}",
+                            if sign == syntax::Sign::Negative {
+                                sign.as_str()
+                            } else {
+                                ""
+                            }
+                        );
+                    }
+                    Atom::RegisterList => {
+                        let list = middle::syn::<syntax::RegisterList>(data);
+                        print!("{{{:016b}}}", list.flags);
+                    }
+                    Atom::Error => print!("ERROR "),
+                }
+            }
+            println!();
+        }
     }
     for err in middle::validate(&ir) {
         println!("error: {err}");
