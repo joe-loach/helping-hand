@@ -46,6 +46,26 @@ impl Condition {
     pub fn value(&self) -> u32 {
         *self as u32
     }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Condition::EQ => "EQ",
+            Condition::NE => "NE",
+            Condition::CS => "CS",
+            Condition::CC => "CC",
+            Condition::MI => "MI",
+            Condition::PL => "PL",
+            Condition::VS => "VS",
+            Condition::VC => "VC",
+            Condition::HI => "HI",
+            Condition::LS => "LS",
+            Condition::GE => "GE",
+            Condition::LT => "LT",
+            Condition::GT => "GT",
+            Condition::LE => "LE",
+            Condition::AL => "AL",
+        }
+    }
 }
 
 impl Default for Condition {
