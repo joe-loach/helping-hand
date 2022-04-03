@@ -422,31 +422,6 @@ pub(super) fn shape(cursor: &mut Cursor) -> Shape {
     }
 }
 
-fn syn<T: FromRaw>(x: u32) -> T {
-    unsafe { FromRaw::from(x) }
-}
-
-use core::mem;
-
-/// # Safety
-/// We know how the conversions to u32 are made,
-/// so we can convert them back.
-unsafe trait FromRaw {
-    unsafe fn from(x: u32) -> Self;
-}
-
-unsafe impl FromRaw for syntax::Opcode {
-    unsafe fn from(x: u32) -> Self {
-        mem::transmute(x as u8)
-    }
-}
-
-unsafe impl FromRaw for syntax::Condition {
-    unsafe fn from(x: u32) -> Self {
-        mem::transmute(x as u8)
-    }
-}
-
 trait Is {
     fn is(&self, x: u32) -> Option<()>;
 }
