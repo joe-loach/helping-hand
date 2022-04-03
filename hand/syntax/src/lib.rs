@@ -2,11 +2,13 @@ mod cond;
 mod kind;
 mod ops;
 mod reg;
+mod sign;
 
 pub use cond::*;
 pub use kind::*;
 pub use ops::*;
 pub use reg::*;
+pub use sign::*;
 
 pub extern crate rowan;
 
