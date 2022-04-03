@@ -10,6 +10,23 @@ ADC     R0, R1, LSL R2
 ADC     R0, R0, R1, LSL R2
 ADR     R0, label
 B       label
+BEQ     label
+BNE     label
+BCS     label
+BCC     label
+BMI     label
+BPL     label
+BVS     label
+BVC     label
+BHI     label
+BLS     label
+BGE     label
+BLT     label
+BGT     label
+BLE     label
+BAL     label
+BHS     label
+BLO     label
 BFC     R0, #1, #31
 BFI     R0, R1, #1, #31
 BL      label
