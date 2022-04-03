@@ -51,18 +51,19 @@ fn run() -> anyhow::Result<()> {
     let ir = middle::lower(root);
     if emit == cli::Emit::IR {
         use middle::Atom;
+        use syntax::{Condition, Opcode, Register, RegisterList, Sign};
         for stmt in &ir {
             for (&atom, &data) in stmt.iter() {
                 match atom {
                     Atom::Instruction => {
-                        let op = middle::higher::<syntax::Opcode>(data);
+                        let op = middle::higher::<Opcode>(data);
                         print!("{}", op.as_str());
                     }
                     Atom::Condition => {
-                        let cond = middle::higher::<syntax::Condition>(data);
+                        let cond = middle::higher::<Condition>(data);
                         print!(
                             "{} ",
-                            if cond != syntax::Condition::AL {
+                            if cond != Condition::AL {
                                 cond.as_str()
                             } else {
                                 ""
@@ -71,7 +72,7 @@ fn run() -> anyhow::Result<()> {
                     }
                     Atom::Shift => print!("{} ", data),
                     Atom::Register => {
-                        let reg = middle::higher::<syntax::Register>(data);
+                        let reg = middle::higher::<Register>(data);
                         print!("{} ", reg.as_str());
                     }
                     Atom::Label => print!("{}: ", data),
@@ -79,10 +80,10 @@ fn run() -> anyhow::Result<()> {
                     Atom::Address => print!("@ "),
                     Atom::Offset => print!("+= "),
                     Atom::Sign => {
-                        let sign = middle::higher::<syntax::Sign>(data);
+                        let sign = middle::higher::<Sign>(data);
                         print!(
                             "{}",
-                            if sign == syntax::Sign::Negative {
+                            if sign == Sign::Negative {
                                 sign.as_str()
                             } else {
                                 ""
@@ -90,7 +91,7 @@ fn run() -> anyhow::Result<()> {
                         );
                     }
                     Atom::RegisterList => {
-                        let list = middle::higher::<syntax::RegisterList>(data);
+                        let list = middle::higher::<RegisterList>(data);
                         print!("{{{:016b}}}", list.flags);
                     }
                     Atom::Error => print!("ERROR "),
