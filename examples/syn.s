@@ -1,4 +1,5 @@
 ; list of all instructions and their correct syntax
+top:
 label:
 ADC     R0, #1
 ADC     R0, R0, #1
