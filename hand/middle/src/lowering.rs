@@ -33,7 +33,7 @@ pub enum Atom {
 
 use std::collections::HashMap;
 
-use crate::{IR, consts::*};
+use crate::{consts::*, IR};
 use ast::Token;
 
 /// Outputs IR in the form:
@@ -64,12 +64,8 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
             if let Some(args) = instr.args() {
                 for arg in args {
                     match arg.kind() {
-                        ast::ArgKind::Register(reg) => {
-                            register(&mut ir, reg);
-                        }
-                        ast::ArgKind::Shift(sft) => {
-                            shift(&mut ir, sft);
-                        }
+                        ast::ArgKind::Register(reg) => register(&mut ir, reg),
+                        ast::ArgKind::Shift(sft) => shift(&mut ir, sft),
                         ast::ArgKind::Label(lbl) => {
                             if let Some(&pos) = labels.get(lbl.name().ident().text()) {
                                 ir.push(Label, pos);
@@ -77,9 +73,7 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
                                 ir.error("Label is not defined");
                             }
                         }
-                        ast::ArgKind::Immediate(imm) => {
-                            immediate(&mut ir, imm);
-                        }
+                        ast::ArgKind::Immediate(imm) => immediate(&mut ir, imm),
                         ast::ArgKind::Address(addr) => {
                             let offset = match addr.kind() {
                                 ast::AddrKind::Offset(a) => {
@@ -148,12 +142,8 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
     fn immediate(ir: &mut IR, imm: ast::Immediate) {
         sign(ir, imm.sign());
         match imm.value() {
-            Ok(value) => {
-                ir.push(Value, value);
-            }
-            Err(e) => {
-                ir.error(format!("Immmediate value couldn't be parsed, {e}"));
-            }
+            Ok(value) => ir.push(Value, value),
+            Err(e) => ir.error(format!("Immmediate value couldn't be parsed, {e}")),
         }
     }
 
@@ -169,12 +159,8 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
         ir.push(Shift, value);
         if let Some(data) = shift.data() {
             match data {
-                ast::ShiftData::Register(reg) => {
-                    register(ir, reg);
-                }
-                ast::ShiftData::Immediate(imm) => {
-                    immediate(ir, imm);
-                }
+                ast::ShiftData::Register(reg) => register(ir, reg),
+                ast::ShiftData::Immediate(imm) => immediate(ir, imm),
             }
         }
     }
