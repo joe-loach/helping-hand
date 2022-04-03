@@ -144,6 +144,13 @@ impl Sign {
         token(self.node())
     }
 
+    pub fn syntax(&self) -> syntax::Sign {
+        match self.is_positive() {
+            true => syntax::Sign::Positive,
+            false => syntax::Sign::Negative,
+        }
+    }
+
     pub fn is_positive(&self) -> bool {
         !self.is_negative()
     }
