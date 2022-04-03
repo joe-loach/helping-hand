@@ -6,7 +6,7 @@ Usage: handasm [OPTIONS] INPUT
 Options:
     -h, --help          Prints help information
     -o FILE             Write output to <file>
-    --emit [asm|ir|ast] Type of output for the compiler to emit
+    --emit [obj|ir|ast] Type of output for the compiler to emit
 ";
 
 use std::path::PathBuf;
@@ -29,7 +29,7 @@ pub fn parse() -> anyhow::Result<Cli> {
     }
 
     let output = pargs.opt_value_from_os_str("-o", parse_path)?;
-    let emit = pargs.opt_value_from_str("--emit")?.unwrap_or(Emit::Asm);
+    let emit = pargs.opt_value_from_str("--emit")?.unwrap_or(Emit::Obj);
     let input = pargs.free_from_os_str(parse_path).map_err(|e| match e {
         pico_args::Error::MissingArgument => anyhow::anyhow!(PrintHelp),
         _ => anyhow::anyhow!(e),
@@ -59,7 +59,7 @@ pub struct Cli {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Emit {
-    Asm,
+    Obj,
     IR,
     Ast,
 }
@@ -67,7 +67,7 @@ pub enum Emit {
 impl core::fmt::Display for Emit {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let text = match self {
-            Emit::Asm => "asm",
+            Emit::Obj => "obj",
             Emit::IR => "ir",
             Emit::Ast => "ast",
         };
@@ -82,7 +82,7 @@ impl core::str::FromStr for Emit {
         use Emit::*;
         let s = s.to_ascii_lowercase();
         let kind = match s.as_str() {
-            "asm" => Asm,
+            "obj" => Obj,
             "ir" => IR,
             "ast" => Ast,
             _ => return Err(String::from("")),
