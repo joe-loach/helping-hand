@@ -55,11 +55,11 @@ fn run() -> anyhow::Result<()> {
             for (&atom, &data) in stmt.iter() {
                 match atom {
                     Atom::Instruction => {
-                        let op = middle::syn::<syntax::Opcode>(data);
+                        let op = middle::higher::<syntax::Opcode>(data);
                         print!("{}", op.as_str());
                     }
                     Atom::Condition => {
-                        let cond = middle::syn::<syntax::Condition>(data);
+                        let cond = middle::higher::<syntax::Condition>(data);
                         print!(
                             "{} ",
                             if cond != syntax::Condition::AL {
@@ -71,7 +71,7 @@ fn run() -> anyhow::Result<()> {
                     }
                     Atom::Shift => print!("{} ", data),
                     Atom::Register => {
-                        let reg = middle::syn::<syntax::Register>(data);
+                        let reg = middle::higher::<syntax::Register>(data);
                         print!("{} ", reg.as_str());
                     }
                     Atom::Label => print!("{}: ", data),
@@ -79,7 +79,7 @@ fn run() -> anyhow::Result<()> {
                     Atom::Address => print!("@ "),
                     Atom::Offset => print!("+= "),
                     Atom::Sign => {
-                        let sign = middle::syn::<syntax::Sign>(data);
+                        let sign = middle::higher::<syntax::Sign>(data);
                         print!(
                             "{}",
                             if sign == syntax::Sign::Negative {
@@ -90,7 +90,7 @@ fn run() -> anyhow::Result<()> {
                         );
                     }
                     Atom::RegisterList => {
-                        let list = middle::syn::<syntax::RegisterList>(data);
+                        let list = middle::higher::<syntax::RegisterList>(data);
                         print!("{{{:016b}}}", list.flags);
                     }
                     Atom::Error => print!("ERROR "),

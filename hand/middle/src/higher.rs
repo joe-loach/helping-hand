@@ -7,7 +7,7 @@ pub unsafe trait FromRaw {
     unsafe fn higher(x: u32) -> Self;
 }
 
-pub fn syn<T: FromRaw>(x: u32) -> T {
+pub fn higher<T: FromRaw>(x: u32) -> T {
     unsafe { FromRaw::higher(x) }
 }
 

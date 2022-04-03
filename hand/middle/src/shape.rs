@@ -33,7 +33,7 @@ pub(super) fn shape(cursor: &mut Cursor) -> Shape {
     cursor.bump(Label);
 
     if let Some(op) = cursor.eat(Instruction) {
-        let op = syn::<syntax::Opcode>(op);
+        let op = higher::<syntax::Opcode>(op);
         cursor.bump(Condition);
 
         use syntax::Opcode::*;
