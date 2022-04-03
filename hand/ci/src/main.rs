@@ -104,6 +104,10 @@ fn run() -> anyhow::Result<()> {
         println!("error: {err}");
     }
 
+    let binary = enc::encode(ir);
+
+    std::fs::write(args.output, binary.to_readable())?;
+
     Ok(())
 }
 

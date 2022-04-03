@@ -11,6 +11,7 @@ lexer = { path = "../lexer"}
 parser = { path = "../parser" }
 ast = { path = "../ast" }
 middle = { path = "../middle" }
+enc = { path = "../enc" }
 
 anyhow = "1.0"
 pico-args = "0.4.2"
