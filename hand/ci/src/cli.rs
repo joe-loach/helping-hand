@@ -35,7 +35,7 @@ pub fn parse() -> anyhow::Result<Cli> {
         _ => anyhow::anyhow!(e),
     })?;
 
-    let output = output.unwrap_or_else(|| input.with_extension(".o"));
+    let output = output.unwrap_or_else(|| input.with_extension("o"));
 
     return Ok(Cli {
         input,
