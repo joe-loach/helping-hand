@@ -2,16 +2,16 @@
 
 mod cursor;
 mod ir;
-mod lowering;
+mod lower;
 mod shape;
 
 pub use cursor::Cursor;
 pub use ir::*;
-pub use lowering::*;
+pub use lower::*;
 
 pub fn lower(root: ast::Root) -> IR {
-    let labels = lowering::labels(&root);
-    lowering::ir(root, &labels)
+    let labels = lower::labels(&root);
+    lower::ir(root, &labels)
 }
 
 pub fn validate(ir: &IR) -> Vec<String> {

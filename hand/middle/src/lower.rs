@@ -11,8 +11,8 @@ pub mod consts {
     }
 
     pub mod sign {
-        pub const POSITIVE: u32 = 1;
-        pub const NEGATIVE: u32 = 0;
+        pub const POSITIVE: u32 = 0;
+        pub const NEGATIVE: u32 = 1;
     }
 }
 
