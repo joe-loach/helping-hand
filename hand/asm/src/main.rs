@@ -68,13 +68,12 @@ const OK_CODE: i32 = 0;
 const ERR_CODE: i32 = 1;
 
 fn main() {
-    match run() {
-        Ok(..) => {
-            std::process::exit(OK_CODE);
-        }
+    let code = match run() {
+        Ok(..) => OK_CODE,
         Err(e) => {
             println!("error: {}", e);
-            std::process::exit(ERR_CODE);
+            ERR_CODE
         }
-    }
+    };
+    std::process::exit(code);
 }
