@@ -31,21 +31,21 @@ fn run() -> anyhow::Result<()> {
             ast::Level::Warn => eprintln!("warning: {}", error.msg),
         }
         let orig = error.element;
-        if let Some(stmt) = orig.ancestors().find_map(ast::Statement::cast) {
-            let stmt_text = stmt.node().text().to_string();
-            let stmt_text_sl = stmt_text.replace(['\n', '\r'], "");
-            println!("{}", stmt_text_sl);
-            let offset = orig.text_range().start() - stmt.node().text_range().start();
-            let offset: usize = offset.try_into().unwrap();
-            let offset = offset - (stmt_text.len() - stmt_text_sl.len());
-            eprintln!(
-                "{}{}",
-                " ".repeat(offset),
-                "^".repeat(orig.text_range().len().try_into().unwrap()),
-            )
-        } else {
-            panic!("all errors occur inside statements");
-        }
+        let stmt = orig
+            .ancestors()
+            .find_map(ast::Statement::cast)
+            .expect("all errors occur inside statements");
+        let stmt_text = stmt.node().text().to_string();
+        let stmt_text_sl = stmt_text.replace(['\n', '\r'], "");
+        println!("{}", stmt_text_sl);
+        let offset = orig.text_range().start() - stmt.node().text_range().start();
+        let offset: usize = offset.try_into().unwrap();
+        let offset = offset - (stmt_text.len() - stmt_text_sl.len());
+        eprintln!(
+            "{}{}",
+            " ".repeat(offset),
+            "^".repeat(orig.text_range().len().try_into().unwrap()),
+        );
     }
 
     let ir = middle::lower(root);
