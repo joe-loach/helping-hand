@@ -1,24 +1,28 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Register {
-    R0,
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-    R8,
-    R9,
-    R10,
-    R11,
-    R12,
-    R13,
-    R14,
-    R15,
+    R0 = 0b0000,
+    R1 = 0b0001,
+    R2 = 0b0010,
+    R3 = 0b0011,
+    R4 = 0b0100,
+    R5 = 0b0101,
+    R6 = 0b0110,
+    R7 = 0b0111,
+    R8 = 0b1000,
+    R9 = 0b1001,
+    R10 = 0b1010,
+    R11 = 0b1011,
+    R12 = 0b1100,
+    R13 = 0b1101,
+    R14 = 0b1110,
+    R15 = 0b1111,
     SP,
     LR,
     PC,
+}
+
+pub struct RegisterList {
+    pub flags: u16,
 }
 
 impl Register {
@@ -51,6 +55,30 @@ impl Register {
             Register::LR => Register::R14,
             Register::PC => Register::R15,
             _ => self,
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Register::R0 => "R0",
+            Register::R1 => "R1",
+            Register::R2 => "R2",
+            Register::R3 => "R3",
+            Register::R4 => "R4",
+            Register::R5 => "R5",
+            Register::R6 => "R6",
+            Register::R7 => "R7",
+            Register::R8 => "R8",
+            Register::R9 => "R9",
+            Register::R10 => "R10",
+            Register::R11 => "R11",
+            Register::R12 => "R12",
+            Register::R13 => "R13",
+            Register::R14 => "R14",
+            Register::R15 => "R15",
+            Register::SP => "SP",
+            Register::LR => "LR",
+            Register::PC => "PC",
         }
     }
 }
