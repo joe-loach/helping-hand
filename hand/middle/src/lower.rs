@@ -44,8 +44,8 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
 
     let mut ir = IR::new();
 
-    let mut pos = 0;
-    for stmt in root.program().statements() {
+    for (pos, stmt) in root.program().statements().enumerate() {
+        let pos = pos as u32;
         // LABEL
         ir.push(Label, pos);
         if let Some(instr) = stmt.instruction() {
@@ -121,7 +121,6 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
         }
         // move onto the next statement
         ir.finish();
-        pos += 4;
     }
     return ir;
 
@@ -168,13 +167,11 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
 
 pub fn labels(root: &ast::Root) -> HashMap<String, u32> {
     let mut map = HashMap::new();
-    let mut pos = 0;
-    for stmt in root.program().statements() {
+    for (pos, stmt) in root.program().statements().enumerate() {
         let label = stmt.label();
         if let Some(label) = label {
-            map.insert(label.name().ident().text().to_owned(), pos);
+            map.insert(label.name().ident().text().to_owned(), pos as u32);
         }
-        pos += 4;
     }
     map
 }
