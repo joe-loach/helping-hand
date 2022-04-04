@@ -52,6 +52,7 @@ pub fn encode(ir: middle::IR) -> Binary {
 
             let op_base = op.value();
 
+            enc |= op_base;
             enc |= cond << (32 - 4);
         }
 
