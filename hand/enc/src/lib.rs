@@ -1,6 +1,5 @@
 use middle::higher;
 use middle::Atom::*;
-use middle::Cursor as IRCursor;
 
 pub struct Binary {
     inner: Vec<u32>,
@@ -31,7 +30,7 @@ pub fn encode(ir: middle::IR) -> Binary {
     let mut binary = Binary::new();
 
     for stmt in ir.iter() {
-        let mut cursor = IRCursor::new(&stmt);
+        let mut cursor = stmt.cursor();
 
         // 0x0000_0000
         let mut enc = 0_u32;
@@ -46,8 +45,6 @@ pub fn encode(ir: middle::IR) -> Binary {
 
             enc |= cond << (32 - 4);
             enc |= op_base;
-
-            
         }
 
         binary.push(enc);

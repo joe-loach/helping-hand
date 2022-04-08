@@ -14,7 +14,7 @@ pub struct Cursor<'a> {
 }
 
 impl<'a> Cursor<'a> {
-    pub fn new(stmt: &'a Stmt<'a>) -> Self {
+    pub(crate) fn new(stmt: &'a Stmt<'a>) -> Self {
         Cursor { pos: 0, stmt }
     }
 

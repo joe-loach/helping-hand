@@ -5,7 +5,6 @@ mod ir;
 mod lower;
 mod higher;
 
-pub use cursor::Cursor;
 pub use ir::*;
 pub use lower::*;
 

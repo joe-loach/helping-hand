@@ -1,4 +1,4 @@
-use crate::Atom;
+use crate::{Atom, cursor::Cursor};
 
 pub struct Stmt<'a>(&'a [Atom], &'a [u32]);
 
@@ -17,6 +17,10 @@ impl Stmt<'_> {
 
     pub fn iter(&self) -> impl Iterator<Item = (&Atom, &u32)> {
         self.atoms().iter().zip(self.data().iter())
+    }
+
+    pub fn cursor(&self) -> Cursor {
+        Cursor::new(self)
     }
 }
 
