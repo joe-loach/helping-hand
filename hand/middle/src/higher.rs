@@ -34,7 +34,7 @@ unsafe impl FromRaw for syntax::Sign {
 
 unsafe impl FromRaw for syntax::Register {
     unsafe fn higher(x: u32) -> Self {
-        debug_assert!(x <= 0b1111);
+        let x = x & 0b1111;
         mem::transmute(x as u8)
     }
 }
