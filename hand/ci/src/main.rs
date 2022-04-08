@@ -100,13 +100,10 @@ fn run() -> anyhow::Result<()> {
             println!();
         }
     }
-    for err in middle::validate(&ir) {
-        println!("error: {err}");
-    }
 
     let binary = enc::encode(ir);
 
-    std::fs::write(args.output, binary.to_readable())?;
+    std::fs::write(args.output, binary.as_bytes())?;
 
     Ok(())
 }
