@@ -40,6 +40,7 @@ CMN     R0, R1, LSL R2
 LDA     R0, [R1]
 LDAB    R0, [R1]
 LDAH    R0, [R1]
+LDM     SP, {R0, R1, R2}
 LDM     SP!, {R0, R1, R2}
 LDR     R0, [R0, #1]
 LDR     R0, label
