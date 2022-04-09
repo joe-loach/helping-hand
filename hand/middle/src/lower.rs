@@ -135,11 +135,11 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
     }
 
     /// 0..4: value
-    /// 5: has_bang
+    /// 4: has_bang
     fn register(ir: &mut IR, reg: ast::Register) {
         let value = reg.syntax().value() as u32;
         let bang = reg.bang().is_some() as u32;
-        ir.push(Register, value | bang << 5);
+        ir.push(Register, value | bang << 4);
     }
 
     fn immediate(ir: &mut IR, imm: ast::Immediate) {
