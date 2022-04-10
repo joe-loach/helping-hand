@@ -37,6 +37,8 @@ CMN     R0, #1
 CMN     R0, R1, RRX
 CMN     R0, R1, LSL #1
 CMN     R0, R1, LSL R2
+CMP     R0, #1
+CMN     R0, #-1
 LDA     R0, [R1]
 LDAB    R0, [R1]
 LDAH    R0, [R1]
