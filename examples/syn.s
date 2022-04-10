@@ -54,6 +54,7 @@ LSL     R0, #0
 LSL     R0, #1
 LSL     R0, R0, #1
 MLA     R0, R1, R2, R3
+MLS     R0, R1, R2, R3
 MOV     R0, #1
 MOV     R0, R1, RRX
 MOV     R0, R1, LSL #1
