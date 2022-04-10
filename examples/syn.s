@@ -50,6 +50,7 @@ LDR     R0, [PC, #1]
 LDR     R0, [R0, R1, LSL #1]
 LDR     R0, [R0], R1, LSL #1
 LDR     R0, [R0, R1, LSL #1]!
+LSL     R0, #0
 LSL     R0, #1
 LSL     R0, R0, #1
 MLA     R0, R1, R2, R3
