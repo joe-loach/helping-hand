@@ -1,8 +1,8 @@
 pub mod consts {
     pub mod address {
-        pub const OFFSET: u32 = 0;
-        pub const PREINC: u32 = 1;
-        pub const POSTINC: u32 = 2;
+        pub const OFFSET: u32 = 0b10;
+        pub const POSTINC: u32 = 0b00;
+        pub const PREINC: u32 = 0b11;
     }
 
     pub mod offset {
