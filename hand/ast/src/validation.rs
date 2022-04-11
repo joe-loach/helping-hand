@@ -20,6 +20,7 @@ This doesn't validate arguments for specific operators, only individual form.
 
 - mixed case opcodes
 - labels with ':' in argument position
+- ident arguments that 'look' like registers but aren't
 
 ## Todo:
  */
@@ -50,6 +51,7 @@ pub(super) fn validate(root: &Root) -> Vec<Error> {
             INSTR => (),
             OP => op(&mut errors, Op(node)),
             REG_LIST => reg_list(&mut errors, RegList(node.clone())),
+            ARG => arg(&mut errors, Arg(node.clone())),
             ARG_LIST => {
                 let args = ArgList(node.clone());
                 let labels = args.iter().filter_map(|arg| match arg.kind() {
@@ -84,6 +86,35 @@ pub(super) fn validate(root: &Root) -> Vec<Error> {
     }
 
     errors
+}
+
+fn arg(errors: &mut Vec<Error>, arg: Arg) {
+    // REGISTER LOOK-A-LIKE
+    {
+        if let ArgKind::Label(lbl) = arg.kind() {
+            let id = lbl.name().ident();
+            if let Some(rest) = id.text().strip_prefix(['R', 'r']) {
+                let is_num = match rest.parse::<u32>() {
+                    Ok(_) => true,
+                    Err(e) => match e.kind() {
+                        std::num::IntErrorKind::Empty => false,
+                        std::num::IntErrorKind::InvalidDigit => false,
+                        std::num::IntErrorKind::PosOverflow => true,
+                        std::num::IntErrorKind::NegOverflow => true,
+                        _ => false,
+                    },
+                };
+                if is_num {
+                    push(
+                        errors,
+                        Warn,
+                        "ident looks like a register but is being treated as a label",
+                        lbl.name().node().clone(),
+                    )
+                }
+            }
+        }
+    }
 }
 
 fn reg(errors: &mut Vec<Error>, register: Register) {
