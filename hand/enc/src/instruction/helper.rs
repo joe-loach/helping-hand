@@ -52,7 +52,10 @@ pub(super) fn register_offset(args: &mut Cursor) -> Option<(u32, bool)> {
     Some((reg, u))
 }
 
-pub(super) fn variant<T>(cursor: &mut Cursor, f: impl FnOnce(&mut Cursor) -> Option<T>) -> Option<T> {
+pub(super) fn variant<T>(
+    cursor: &mut Cursor,
+    f: impl FnOnce(&mut Cursor) -> Option<T>,
+) -> Option<T> {
     let c = cursor.checkpoint();
     let res = f(cursor);
     if res.is_none() {

@@ -1,4 +1,4 @@
-use crate::{Atom, cursor::Cursor};
+use crate::{cursor::Cursor, Atom};
 
 pub struct Stmt<'a>(&'a [Atom], &'a [u32]);
 

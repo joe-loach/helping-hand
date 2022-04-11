@@ -1,5 +1,5 @@
 /// Produces a 32 bit value from user definied values.
-/// 
+///
 /// # How it works
 /// This macro is an Incremental tt muncher.
 /// It builds the expression `x` based on values that you give it.

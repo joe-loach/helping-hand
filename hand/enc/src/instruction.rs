@@ -479,4 +479,3 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         None
     }
 }
-
