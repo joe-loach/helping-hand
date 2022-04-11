@@ -189,6 +189,9 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         }
         LDRD => variant(args, |args| {
             let (rt, rt2) = ir!("R R")(args)?;
+            if (rt % 2 != 0 || rt == 14) {
+                return None;
+            }
             if (rt + 1) != rt2 {
                 return None;
             }
@@ -423,6 +426,9 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         }
         STRD => variant(args, |args| {
             let (rt, rt2) = ir!("R R")(args)?;
+            if (rt % 2 != 0 || rt == 14) {
+                return None;
+            }
             if (rt + 1) != rt2 {
                 return None;
             }
