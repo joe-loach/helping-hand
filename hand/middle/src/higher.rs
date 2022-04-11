@@ -4,6 +4,9 @@ use core::mem;
 /// We know how the conversions to u32 are made,
 /// so we can convert them back.
 pub unsafe trait FromRaw {
+    /// # Safety
+    /// Transmutations are used internally,
+    /// use asserts to make sure that everything works correctly.
     unsafe fn higher(x: u32) -> Self;
 }
 
