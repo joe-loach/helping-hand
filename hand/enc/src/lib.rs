@@ -1,5 +1,4 @@
-use middle::higher;
-use middle::Atom::*;
+mod instruction;
 
 pub struct Binary {
     inner: Vec<u32>,
@@ -25,26 +24,24 @@ impl Binary {
 }
 
 pub fn encode(ir: middle::IR) -> Binary {
-    use syntax::Opcode;
+    use middle::Atom::*;
 
     let mut binary = Binary::new();
 
     for stmt in ir.iter() {
         let mut cursor = stmt.cursor();
 
-        // 0x0000_0000
         let mut enc = 0_u32;
 
         let _pos = cursor.bump(Label);
 
         if let Some(op) = cursor.eat(Instruction) {
-            let op = higher::<Opcode>(op);
-            let cond = cursor.bump(Condition); // 0x0 - 0xF
-
-            let op_base = op.value();
-
-            enc |= cond << (32 - 4);
-            enc |= op_base;
+            if let Some(instr) = instruction::encode(&mut cursor, op) {
+                enc = instr;
+            } else {
+                // TODO: Errors
+                enc = u32::MAX;
+            }
         }
 
         binary.push(enc);

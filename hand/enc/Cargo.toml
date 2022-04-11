@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 syntax = { path = "../syntax" }
 middle = { path = "../middle" }
+intbits = "0.2.0"
