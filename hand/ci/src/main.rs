@@ -78,7 +78,11 @@ fn run() -> anyhow::Result<()> {
                     Atom::Shift => print!("{} ", data),
                     Atom::Register => {
                         let reg = middle::higher::<Register>(data);
-                        print!("{}{} ", reg.as_str(), if data & 0x10 != 0 { "!" } else { "" });
+                        print!(
+                            "{}{} ",
+                            reg.as_str(),
+                            if data & 0x10 != 0 { "!" } else { "" }
+                        );
                     }
                     Atom::Label => print!("{}: ", data),
                     Atom::Value => print!("{} ", data),
