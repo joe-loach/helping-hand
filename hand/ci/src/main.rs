@@ -18,6 +18,11 @@ fn run() -> anyhow::Result<()> {
     let lexed = lexer::lex(&src);
     let parse = parser::parse(&lexed);
 
+    if !parse.errors.is_empty() {
+        for err in &parse.errors {
+            eprintln!("error: {}", err);
+        }
+    }
     let root = ast::ast(parse);
     if emit == cli::Emit::Ast {
         println!("{:#?}", root);
