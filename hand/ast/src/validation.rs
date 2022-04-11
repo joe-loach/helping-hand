@@ -91,18 +91,14 @@ pub(super) fn validate(root: &Root) -> Vec<Error> {
 fn arg(errors: &mut Vec<Error>, arg: Arg) {
     // REGISTER LOOK-A-LIKE
     {
+        use std::num::IntErrorKind::*;
         if let ArgKind::Label(lbl) = arg.kind() {
             let id = lbl.name().ident();
             if let Some(rest) = id.text().strip_prefix(['R', 'r']) {
                 let is_num = match rest.parse::<u32>() {
                     Ok(_) => true,
-                    Err(e) => match e.kind() {
-                        std::num::IntErrorKind::Empty => false,
-                        std::num::IntErrorKind::InvalidDigit => false,
-                        std::num::IntErrorKind::PosOverflow => true,
-                        std::num::IntErrorKind::NegOverflow => true,
-                        _ => false,
-                    },
+                    // could still be a number, just too large / small
+                    Err(e) => matches!(e.kind(), PosOverflow | NegOverflow),
                 };
                 if is_num {
                     push(
