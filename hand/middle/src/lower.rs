@@ -5,6 +5,14 @@ pub mod consts {
         pub const PREINC: u32 = 0b11;
     }
 
+    pub mod shift {
+        pub const LSL: u32 = 0b00;
+        pub const LSR: u32 = 0b01;
+        pub const ASR: u32 = 0b10;
+        pub const ROR: u32 = 0b11;
+        pub const RRX: u32 = 0b11;
+    }
+
     pub mod offset {
         pub const VALUE: u32 = 0;
         pub const REGISTER: u32 = 1;
@@ -153,10 +161,10 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
     fn shift(ir: &mut IR, shift: ast::Shift) {
         use syntax::Opcode::*;
         let value = match shift.op().code().syntax() {
-            LSL => 0b00,
-            LSR => 0b01,
-            ASR => 0b10,
-            RRX | ROR => 0b11,
+            LSL => shift::LSL,
+            LSR => shift::LSR,
+            ASR => shift::ASR,
+            RRX | ROR => shift::ROR,
             _ => unreachable!(),
         };
         ir.push(Shift, value);

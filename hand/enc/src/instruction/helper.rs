@@ -10,17 +10,17 @@ pub(super) fn shift_imm(args: &mut Cursor) -> Option<(u32, u32)> {
         }
         match (shift, value) {
             // RRX
-            (0b11, None) => (0b11, 0),
+            (shift::RRX, None) => (shift::RRX, 0),
             // LSL | ROR
-            (0b00 | 0b11, Some(x)) if (1..=31).contains(&x) => (shift, x),
+            (shift::LSL | shift::ROR, Some(x)) if (1..=31).contains(&x) => (shift, x),
             // LSR | ASR
-            (0b01 | 0b10, Some(x)) if (1..=32).contains(&x) => (shift, x % 32),
+            (shift::LSR | shift::ASR, Some(x)) if (1..=32).contains(&x) => (shift, x % 32),
             // No shift when value = 0
-            (_, Some(0)) => (0b00, 0),
+            (_, Some(0)) => (shift::LSL, 0),
             _ => return None,
         }
     } else {
-        (0b00, 0) // LSL #0
+        (shift::LSL, 0) // LSL #0
     };
     Some(data)
 }
