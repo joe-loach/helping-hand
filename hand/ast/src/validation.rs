@@ -14,6 +14,7 @@ This doesn't validate arguments for specific operators, only individual form.
 - repeated registers in a register list
 - no registers in a register list
 - invalid bangs attached to registers
+- dual registers: {consecutive, even-numbered, not R14}
 
 ## Warnings:
 
@@ -21,7 +22,6 @@ This doesn't validate arguments for specific operators, only individual form.
 - labels with ':' in argument position
 
 ## Todo:
-
  */
 
 use std::collections::HashMap;
@@ -165,6 +165,59 @@ fn op(errors: &mut Vec<Error>, op: Op) {
                 "opcode casing should be consistent",
                 code.token().clone(),
             );
+        }
+    }
+    // DUAL REGISTERS
+    {
+        use syntax::Opcode::*;
+
+        let code = op.code();
+
+        if matches!(code.syntax(), LDRD | STRD) {
+            // find the instruction its in
+            let instr = op.node().ancestors().find_map(Instruction::cast).unwrap();
+
+            // get the first two registers from the arguments
+            if let Some(args) = instr.args() {
+                let regs = args
+                    .take(2)
+                    .filter_map(|a| {
+                        if let ArgKind::Register(r) = a.kind() {
+                            Some(r)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let rt = regs.get(0);
+                let rt2 = regs.get(1);
+                if let (Some(rt), Some(rt2)) = (rt, rt2) {
+                    let rtv = rt.syntax().value();
+                    let rt2v = rt2.syntax().value();
+                    if rtv % 2 != 0 {
+                        push(
+                            errors,
+                            Error,
+                            "first dual register must be even-numbered",
+                            rt.node().clone(),
+                        )
+                    } else if rtv == 14 {
+                        push(
+                            errors,
+                            Error,
+                            "first dual register mustn't be R14 or LR",
+                            rt.node().clone(),
+                        )
+                    } else if rtv + 1 != rt2v {
+                        push(
+                            errors,
+                            Error,
+                            format!("dual registers must be consecutive, should be R{}", rtv + 1),
+                            rt2.node().clone(),
+                        )
+                    }
+                }
+            }
         }
     }
 }
