@@ -31,18 +31,18 @@ pub fn encode(ir: middle::IR) -> Binary {
     for stmt in ir.iter() {
         let mut cursor = stmt.cursor();
 
-        let mut enc = 0_u32;
-
         let _pos = cursor.bump(Label);
 
-        if let Some(op) = cursor.eat(Instruction) {
+        let enc = if let Some(op) = cursor.eat(Instruction) {
             if let Some(instr) = instruction::encode(&mut cursor, op) {
-                enc = instr;
+                instr
             } else {
                 // TODO: Errors
-                enc = u32::MAX;
+                u32::MAX
             }
-        }
+        } else {
+            0
+        };
 
         binary.push(enc);
     }
