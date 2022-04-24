@@ -1,0 +1,6 @@
+DCB #5 ; DEFB #5
+ALIGN
+
+DCD #5 ; DEFW #5
+SPACE #200 ; DEFS #200
+label EQU #5
