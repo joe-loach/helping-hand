@@ -1,4 +1,4 @@
-# Helping Hand
+# Helping Hand 👋
 
 An interactive web book to help people learn ARM.
 
