@@ -101,12 +101,28 @@ impl<'a> Cursor<'a> {
                 }
                 STRING
             }
+            // Char
+            '\'' => {
+                // Chars can only be a single ascii character
+                if self.peek_nth(1) == Some('\'') && self.peek() != Some('\\'){
+                    let c = self.eat();
+                    self.eat(); // terminating "'"
+                    if let Some(c) = c {
+                        if !c.is_ascii() {
+                            self.error("Character literals must only contain ascii characters");
+                        }
+                    }
+                    CHAR
+                } else {
+                    UNKNOWN
+                }
+            }
             // Ident
             c if c.is_xid_start() => {
                 self.eat_while(UnicodeXID::is_xid_continue);
                 IDENT
             }
-            // Literal
+            // Number
             c @ '0'..='9' => {
                 // check for base prefix
                 if c == '0' {
@@ -121,7 +137,7 @@ impl<'a> Cursor<'a> {
                     }
                 }
                 self.eat_while(|c| matches!(c, '0'..='9'));
-                LITERAL
+                NUMBER
             }
             '!' => BANG,
             ',' => COMMA,

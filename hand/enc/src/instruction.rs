@@ -1,13 +1,10 @@
-mod helper;
-mod inst;
-mod ir;
+mod macros;
 
-use helper::*;
-use inst::inst;
-use ir::ir;
+use macros::*;
 
 use std::cmp::Ordering;
 
+use crate::{variant, Is};
 use intbits::Bits;
 use middle::{consts::*, higher};
 use middle::{Atom::*, Cursor};
@@ -25,7 +22,7 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
                 let (rd, rn) = ir!("{R} R")(args)?;
                 ir!("+")(args)?;
                 // TODO: do imm12 parsing fn(u32) -> Option<u32>
-                let imm = args.eat(Value)?;
+                let imm = args.eat(Number)?;
                 inst!([cond:4] 0 0 1 0 | 1 0 1 | s | [rn:4] [rd: 4] [imm:12])
             })
             .or_else(|| {
@@ -59,12 +56,12 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         BFC => variant(args, |args| {
             let rd = ir!("R")(args)?;
             ir!("+")(args)?;
-            let lsb = args.eat(Value)?;
+            let lsb = args.eat(Number)?;
             if !(0..=31).contains(&lsb) {
                 return None;
             }
             ir!("+")(args)?;
-            let width = args.eat(Value)?;
+            let width = args.eat(Number)?;
             if !(1..=(32 - lsb)).contains(&width) {
                 return None;
             }
@@ -74,12 +71,12 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         BFI => variant(args, |args| {
             let (rd, rn) = ir!("R R")(args)?;
             ir!("+")(args)?;
-            let lsb = args.eat(Value)?;
+            let lsb = args.eat(Number)?;
             if !(0..=31).contains(&lsb) {
                 return None;
             }
             ir!("+")(args)?;
-            let width = args.eat(Value)?;
+            let width = args.eat(Number)?;
             if !(1..=(32 - lsb)).contains(&width) {
                 return None;
             }
@@ -104,7 +101,7 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
             variant(args, |args| {
                 let rn = ir!("R")(args)?;
                 let sign = args.eat(Sign)?;
-                let imm = args.eat(Value)?;
+                let imm = args.eat(Number)?;
                 let s = if sign == sign::NEGATIVE { !s } else { s };
                 inst!([cond:4] 0 0 1 1 0 | 1 s | 1 | [rn:4] | 0 0 0 0 | [imm:12])
             })
@@ -256,7 +253,7 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
             variant(args, |args| {
                 let (rd, rm) = ir!("{R} R")(args)?;
                 ir!("+")(args)?;
-                let imm = args.eat(Value)?;
+                let imm = args.eat(Number)?;
                 if !(0..=31).contains(&imm) {
                     return None;
                 }
@@ -274,7 +271,7 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
             variant(args, |args| {
                 let (rd, rm) = ir!("{R} R")(args)?;
                 ir!("+")(args)?;
-                let imm = args.eat(Value)?;
+                let imm = args.eat(Number)?;
                 if !(1..=32).contains(&imm) {
                     return None;
                 }
@@ -302,7 +299,7 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
             variant(args, |args| {
                 let rd = ir!("R")(args)?;
                 let sign = args.eat(Sign)?;
-                let imm = args.eat(Value)?;
+                let imm = args.eat(Number)?;
                 let n = if sign == sign::NEGATIVE { !n } else { n };
                 inst!([cond:4] 0 0 1 1 1 | n 1 | s | 0 0 0 0 | [rd:4] [imm:12])
             })
@@ -325,7 +322,7 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         MOVT => variant(args, |args| {
             let rd = ir!("R")(args)?;
             args.eat(Sign).is(sign::POSITIVE)?;
-            let imm = args.eat(Value)?;
+            let imm = args.eat(Number)?;
             let top = imm.bits(12..16);
             let bottom = imm.bits(0..12);
             inst!([cond:4] 0 0 1 1 0 | 1 | 0 0 | [top:4] [rd:4] [bottom:12])
@@ -466,7 +463,11 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         }),
         // SUB => todo!(),
         // SUBS => todo!(),
-        // SVC => todo!(),
+        SVC => variant(args, |args| {
+            args.eat(Sign);
+            let imm = args.eat(Number)?;
+            inst!([cond:4] 1 1 1 1 | [imm:24])
+        }),
         // TEQ => todo!(),
         // TST => todo!(),
         // UDIV => todo!(),
@@ -478,4 +479,55 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
     } else {
         None
     }
+}
+
+fn shift_imm(args: &mut Cursor) -> Option<(u32, u32)> {
+    let data = if let Some(shift) = args.eat(Shift) {
+        let sign = args.eat(Sign);
+        let value = args.eat(Number);
+        if value.is_some() {
+            sign.is(sign::POSITIVE)?;
+        }
+        match (shift, value) {
+            // RRX
+            (shift::RRX, None) => (shift::RRX, 0),
+            // LSL | ROR
+            (shift::LSL | shift::ROR, Some(x)) if (1..=31).contains(&x) => (shift, x),
+            // LSR | ASR
+            (shift::LSR | shift::ASR, Some(x)) if (1..=32).contains(&x) => (shift, x % 32),
+            // No shift when value = 0
+            (_, Some(0)) => (shift::LSL, 0),
+            _ => return None,
+        }
+    } else {
+        (shift::LSL, 0) // LSL #0
+    };
+    Some(data)
+}
+
+fn address(args: &mut Cursor) -> Option<(bool, bool, u32)> {
+    let addr = args.eat(Address)?;
+    let reg = args.bump(Register);
+    let p = (addr & 0b10) != 0;
+    let w = (addr & 0b01) != 0;
+    Some((p, w, reg))
+}
+
+fn value_offset(args: &mut Cursor) -> Option<(u32, bool)> {
+    let data = if let Some(off) = args.eat(Offset) {
+        off.is(offset::VALUE)?;
+        let u = args.eat(Sign)? == sign::POSITIVE;
+        let imm = args.eat(Number)?;
+        (imm, u)
+    } else {
+        (0, true)
+    };
+    Some(data)
+}
+
+fn register_offset(args: &mut Cursor) -> Option<(u32, bool)> {
+    args.eat(Offset).is(offset::REGISTER)?;
+    let u = args.eat(Sign)? == sign::POSITIVE;
+    let reg = args.eat(Register)?;
+    Some((reg, u))
 }

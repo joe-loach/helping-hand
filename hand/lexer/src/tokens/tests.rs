@@ -14,8 +14,21 @@ fn comments() {
 }
 
 #[test]
-fn literals() {
-    kind("0", LITERAL);
-    kind("42", LITERAL);
-    kind("0xAFaf09", LITERAL);
+fn numbers() {
+    kind("0", NUMBER);
+    kind("42", NUMBER);
+    kind("0xAFaf09", NUMBER);
+}
+
+#[test]
+fn strings() {
+    kind(r#""""#, STRING);
+    kind(r#""Hello, world""#, STRING);
+    kind(r#""\"Hello, world\"""#, STRING);
+}
+
+#[test]
+fn chars() {
+    kind("'a'", CHAR);
+    kind("'Z'", CHAR);
 }

@@ -14,6 +14,13 @@ pub fn higher<T: FromRaw>(x: u32) -> T {
     unsafe { FromRaw::higher(x) }
 }
 
+unsafe impl FromRaw for syntax::Directive {
+    unsafe fn higher(x: u32) -> Self {
+        debug_assert!(x < syntax::DIRECTIVES.len() as u32);
+        mem::transmute(x as u8)
+    }
+}
+
 unsafe impl FromRaw for syntax::Opcode {
     unsafe fn higher(x: u32) -> Self {
         debug_assert!(x < syntax::OPCODES.len() as u32);

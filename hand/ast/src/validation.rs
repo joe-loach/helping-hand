@@ -70,15 +70,17 @@ pub(super) fn validate(root: &Root) -> Vec<Error> {
                 }
             }
             REGISTER => reg(&mut errors, Register(node.clone())),
-            IMMEDIATE => {
-                let imm = Immediate(node.clone());
-                if let Err(e) = imm.value() {
-                    push(
-                        &mut errors,
-                        Error,
-                        format!("couldn't parse int, {}", e),
-                        imm.node().clone(),
-                    )
+            LITERAL => {
+                let lit = Literal(node.clone());
+                if let LiteralKind::Number(n) = lit.kind() {
+                    if let Err(e) = n.value() {
+                        push(
+                            &mut errors,
+                            Error,
+                            format!("couldn't parse int, {}", e),
+                            lit.node().clone(),
+                        )
+                    }
                 }
             }
             _ => (),

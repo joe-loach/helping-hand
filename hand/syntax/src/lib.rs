@@ -3,19 +3,16 @@ mod kind;
 mod ops;
 mod reg;
 mod sign;
+mod directive;
 
 pub use cond::*;
 pub use kind::*;
 pub use ops::*;
 pub use reg::*;
 pub use sign::*;
+pub use directive::*;
 
 pub extern crate rowan;
-
-// TODO: DIRECTIVES IMPL
-// https://developer.arm.com/documentation/101754/0617/armclang-Reference/armclang-Integrated-Assembler/Data-definition-directives?lang=en
-// https://developer.arm.com/documentation/dui0742/k/Migrating-from-armasm-to-the-armclang-Integrated-Assembler/Data-definition-directives?lang=en
-// https://developer.arm.com/documentation/dui0802/b/Directives-Reference/Alphabetical-list-of-directives
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Hand {}

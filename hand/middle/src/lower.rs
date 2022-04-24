@@ -27,11 +27,14 @@ pub mod consts {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Atom {
     Instruction,
+    Directive,
     Condition,
     Shift,
     Register,
     Label,
-    Value,
+    Number,
+    Char,
+    Bool,
     Address,
     Offset,
     Sign,
@@ -44,93 +47,120 @@ use std::collections::HashMap;
 use crate::{consts::*, IR};
 use ast::Token;
 
+type LabelMap = HashMap<String, (Atom, u32)>;
+
 /// Outputs IR in the form:
 ///
-/// LABEL (INSTRUCTION CONDITION ARGS?)?
-pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
+/// LABEL
+///     (
+///     | INSTRUCTION CONDITION ARGS?
+///     | DIRECTIVE ARGS?
+///     )?
+pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
     use Atom::*;
 
     let mut ir = IR::new();
 
-    for (pos, stmt) in root.program().statements().enumerate() {
-        let pos = pos as u32;
+    for (stmt, pos) in root.program().statements().zip(0_u32..) {
         // LABEL
+        let label = stmt.label();
         ir.push(Label, pos);
-        if let Some(instr) = stmt.instruction() {
-            // INSTRUCTION
-            ir.push(Instruction, instr.op().code().syntax() as u32);
-            // CONDITION
-            ir.push(
-                Condition,
-                instr
-                    .op()
-                    .condition()
-                    .map(|cond| cond.syntax())
-                    .unwrap_or_default() as u32,
-            );
-            // ARGS
-            if let Some(args) = instr.args() {
-                for arg in args {
-                    match arg.kind() {
-                        ast::ArgKind::Register(reg) => register(&mut ir, reg),
-                        ast::ArgKind::Shift(sft) => shift(&mut ir, sft),
-                        ast::ArgKind::Label(lbl) => {
-                            if let Some(&pos) = labels.get(lbl.name().ident().text()) {
-                                ir.push(Label, pos);
-                            } else {
-                                ir.error("Label is not defined");
-                            }
-                        }
-                        ast::ArgKind::Immediate(imm) => immediate(&mut ir, imm),
-                        ast::ArgKind::Address(addr) => {
-                            let offset = match addr.kind() {
-                                ast::AddrKind::Offset(a) => {
-                                    ir.push(Address, address::OFFSET);
-                                    a.offset()
-                                }
-                                ast::AddrKind::PreInc(a) => {
-                                    ir.push(Address, address::PREINC);
-                                    Some(a.offset())
-                                }
-                                ast::AddrKind::PostInc(a) => {
-                                    ir.push(Address, address::POSTINC);
-                                    Some(a.offset())
-                                }
-                            };
-                            register(&mut ir, addr.base());
-                            if let Some(offset) = offset {
-                                match offset.kind() {
-                                    ast::OffsetKind::Immediate(o) => {
-                                        ir.push(Offset, offset::VALUE);
-                                        immediate(&mut ir, o.immediate());
-                                    }
-                                    ast::OffsetKind::Register(o) => {
-                                        ir.push(Offset, offset::REGISTER);
-                                        sign(&mut ir, o.sign());
-                                        register(&mut ir, o.base());
-                                        if let Some(sft) = o.shift() {
-                                            shift(&mut ir, sft);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        ast::ArgKind::RegList(r_list) => {
-                            let mut bits: u16 = 0;
-                            for reg in r_list.iter() {
-                                let value = reg.syntax().value() as u16;
-                                bits |= 1 << value;
-                            }
-                            ir.push(RegisterList, bits as u32)
-                        }
-                    }
-                }
+        // BODY?
+        if let Some(body) = stmt.body() {
+            match body {
+                ast::StmtBody::Instruction(instr) => instruction(&mut ir, instr, &labels),
+                ast::StmtBody::Meta(meta) => directive(&mut ir, label, meta, &mut labels),
             }
         }
         // move onto the next statement
         ir.finish();
     }
     return ir;
+
+    fn directive(ir: &mut IR, label: Option<ast::Label>, meta: ast::Meta, labels: &mut LabelMap) {
+        let dir = meta.directive().syntax();
+        ir.push(Directive, dir as u32);
+        if let Some(args) = meta.args() {
+            for a in args {
+                arg(ir, a, labels);
+            }
+        }
+    }
+
+    fn instruction(ir: &mut IR, instr: ast::Instruction, labels: &LabelMap) {
+        let op = instr.op();
+        // INSTRUCTION
+        ir.push(Instruction, op.code().syntax() as u32);
+        // CONDITION
+        ir.push(
+            Condition,
+            op.condition().map(|cond| cond.syntax()).unwrap_or_default() as u32,
+        );
+        // ARGS
+        if let Some(args) = instr.args() {
+            for a in args {
+                arg(ir, a, labels);
+            }
+        }
+    }
+
+    fn arg(ir: &mut IR, arg: ast::Arg, labels: &LabelMap) {
+        match arg.kind() {
+            ast::ArgKind::Register(reg) => register(ir, reg),
+            ast::ArgKind::Shift(sft) => shift(ir, sft),
+            ast::ArgKind::Label(lbl) => {
+                let name = lbl.name().ident();
+                if let Some(&(atom, data)) = labels.get(name.text()) {
+                    ir.push(atom, data);
+                } else {
+                    ir.error("Label is not defined");
+                }
+            }
+            ast::ArgKind::Immediate(imm) => immediate(ir, imm),
+            ast::ArgKind::Literal(lit) => literal(ir, lit),
+            ast::ArgKind::Address(addr) => {
+                let offset = match addr.kind() {
+                    ast::AddrKind::Offset(a) => {
+                        ir.push(Address, address::OFFSET);
+                        a.offset()
+                    }
+                    ast::AddrKind::PreInc(a) => {
+                        ir.push(Address, address::PREINC);
+                        Some(a.offset())
+                    }
+                    ast::AddrKind::PostInc(a) => {
+                        ir.push(Address, address::POSTINC);
+                        Some(a.offset())
+                    }
+                };
+                register(ir, addr.base());
+                if let Some(offset) = offset {
+                    match offset.kind() {
+                        ast::OffsetKind::Immediate(o) => {
+                            ir.push(Offset, offset::VALUE);
+                            immediate(ir, o.immediate());
+                        }
+                        ast::OffsetKind::Register(o) => {
+                            ir.push(Offset, offset::REGISTER);
+                            sign(ir, o.sign());
+                            register(ir, o.base());
+                            if let Some(sft) = o.shift() {
+                                shift(ir, sft);
+                            }
+                        }
+                    }
+                }
+            }
+            ast::ArgKind::RegList(r_list) => {
+                let mut bits: u16 = 0;
+                for reg in r_list.iter() {
+                    let value = reg.syntax().value() as u16;
+                    bits |= 1 << value;
+                }
+                ir.push(RegisterList, bits as u32)
+            }
+        }
+    }
 
     fn sign(ir: &mut IR, sign: ast::Sign) {
         ir.push(
@@ -152,9 +182,26 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
 
     fn immediate(ir: &mut IR, imm: ast::Immediate) {
         sign(ir, imm.sign());
-        match imm.value() {
-            Ok(value) => ir.push(Value, value),
-            Err(e) => ir.error(format!("Immmediate value couldn't be parsed, {e}")),
+        literal(ir, imm.literal());
+    }
+
+    fn literal(ir: &mut IR, lit: ast::Literal) {
+        match lit.kind() {
+            ast::LiteralKind::Number(n) => match n.value() {
+                Ok(value) => ir.push(Number, value),
+                Err(e) => ir.error(format!("Number couldn't be parsed, {e}")),
+            },
+            ast::LiteralKind::String(s) => {
+                let s = s.value();
+                for c in s.chars() {
+                    ir.push(Char, c as u32)
+                }
+            }
+            ast::LiteralKind::Char(c) => {
+                let c = c.value();
+                ir.push(Char, c as u32)
+            }
+            ast::LiteralKind::Bool(b) => ir.push(Bool, b as u32),
         }
     }
 
@@ -177,12 +224,14 @@ pub(super) fn ir(root: ast::Root, labels: &HashMap<String, u32>) -> IR {
     }
 }
 
-pub fn labels(root: &ast::Root) -> HashMap<String, u32> {
+/// Must iterate through the ast collecting all the labels beforehand.
+/// This allows forward references with label names.
+pub(super) fn labels(root: &ast::Root) -> HashMap<String, (Atom, u32)> {
     let mut map = HashMap::new();
-    for (pos, stmt) in root.program().statements().enumerate() {
-        let label = stmt.label();
-        if let Some(label) = label {
-            map.insert(label.name().ident().text().to_owned(), pos as u32);
+    for (stmt, pos) in root.program().statements().zip(0_u32..) {
+        if let Some(label) = stmt.label() {
+            let name = label.name().ident().text().to_owned();
+            map.insert(name, (Atom::Label, pos));
         }
     }
     map

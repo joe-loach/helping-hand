@@ -23,8 +23,10 @@ node! { Root(ROOT) }
 node! { Program(PROGRAM) }
 node! { Statement(STATEMENT) }
 node! { Instruction(INSTR) }
+node! { Meta(META) }
 node! { Op(OP) }
 node! { Immediate(IMMEDIATE) }
+node! { Literal(LITERAL) }
 node! { Label(LABEL) }
 node! { Name(NAME) }
 node! { Sign(SIGN) }
@@ -35,31 +37,42 @@ impl Program {
     }
 }
 
-pub enum StmtKind {
-    Label(Label),
+pub enum StmtBody {
     Instruction(Instruction),
-    Both {
-        label: Label,
-        instruction: Instruction,
-    },
+    Meta(Meta),
 }
 
 impl Statement {
-    pub fn kind(&self) -> StmtKind {
-        match (self.label(), self.instruction()) {
-            (Some(label), None) => StmtKind::Label(label),
-            (None, Some(instruction)) => StmtKind::Instruction(instruction),
-            (Some(label), Some(instruction)) => StmtKind::Both { label, instruction },
-            (None, None) => unreachable!(),
-        }
-    }
-
     pub fn label(&self) -> Option<Label> {
         child(self.node())
     }
 
+    pub fn body(&self) -> Option<StmtBody> {
+        self.instruction()
+            .map(StmtBody::Instruction)
+            .or_else(|| self.meta().map(StmtBody::Meta))
+    }
+
     pub fn instruction(&self) -> Option<Instruction> {
         child(self.node())
+    }
+
+    pub fn meta(&self) -> Option<Meta> {
+        child(self.node())
+    }
+}
+
+impl Meta {
+    pub fn directive(&self) -> Directive {
+        token(self.node()).unwrap()
+    }
+
+    pub fn arg_list(&self) -> Option<ArgList> {
+        child(self.node())
+    }
+
+    pub fn args(&self) -> Option<impl Iterator<Item = Arg>> {
+        self.arg_list().map(|list| list.iter())
     }
 }
 
@@ -115,13 +128,47 @@ impl Immediate {
     }
 
     pub fn literal(&self) -> Literal {
-        token(self.node()).unwrap()
+        child(self.node()).unwrap()
+    }
+}
+
+pub enum LiteralKind {
+    Number(Num),
+    String(Str),
+    Char(Char),
+    Bool(bool),
+}
+
+impl Literal {
+    pub fn kind(&self) -> LiteralKind {
+        self.number()
+            .map(LiteralKind::Number)
+            .or_else(|| self.string().map(LiteralKind::String))
+            .or_else(|| self.char().map(LiteralKind::Char))
+            .or_else(|| self.bool().map(LiteralKind::Bool))
+            .unwrap()
     }
 
-    pub fn value(&self) -> Result<u32, std::num::ParseIntError> {
-        let lit = self.literal();
-        let number = lit.text().trim_start_matches("0x");
-        number.parse()
+    pub fn number(&self) -> Option<Num> {
+        token(self.node())
+    }
+
+    pub fn string(&self) -> Option<Str> {
+        token(self.node())
+    }
+
+    pub fn char(&self) -> Option<Char> {
+        token(self.node())
+    }
+
+    pub fn bool(&self) -> Option<bool> {
+        if let Some(True(_)) = token(self.node()) {
+            Some(true)
+        } else if let Some(False(_)) = token(self.node()) {
+            Some(false)
+        } else {
+            None
+        }
     }
 }
 

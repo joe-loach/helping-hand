@@ -10,6 +10,7 @@ pub enum ArgKind {
     Immediate(Immediate),
     Address(Address),
     RegList(RegList),
+    Literal(Literal),
 }
 
 impl Node for ArgKind {
@@ -22,6 +23,7 @@ impl Node for ArgKind {
             Immediate(node) => node.node(),
             Address(node) => node.node(),
             RegList(node) => node.node(),
+            Literal(node) => node.node(),
         }
     }
 
@@ -33,6 +35,7 @@ impl Node for ArgKind {
             IMMEDIATE => ArgKind::Immediate(Immediate(node)),
             ADDR_OFF | ADDR_POST | ADDR_PRE => ArgKind::Address(Address(node)),
             REG_LIST => ArgKind::RegList(RegList(node)),
+            LITERAL => ArgKind::Literal(Literal(node)),
             _ => return None,
         };
         Some(res)

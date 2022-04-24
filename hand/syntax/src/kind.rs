@@ -10,9 +10,10 @@ pub enum SyntaxKind {
     ERROR,
     COMMENT,
     IDENT,
-    LITERAL,
+    NUMBER,
     STRING,
-
+    CHAR,
+    
     BANG,
     COMMA,
     COLON,
@@ -24,11 +25,13 @@ pub enum SyntaxKind {
     OPEN_CURLY,
     CLOSE_CURLY,
     SLASH,
-
+    
     ROOT,
     PROGRAM,
     STATEMENT,
     INSTR,
+    META,
+    DIRECTIVE,
     OP,
     OPCODE,
     COND,
@@ -42,6 +45,7 @@ pub enum SyntaxKind {
     OFFSET_IMM,
     OFFSET_REG,
     SHIFT,
+    LITERAL,
     IMMEDIATE,
     REGISTER,
     LABEL,
@@ -73,6 +77,15 @@ impl SyntaxKind {
         matches!(self, RN | SP | LR | PC)
     }
 
+    pub fn from_keyword(s: &str) -> Option<SyntaxKind> {
+        let kind = match s {
+            "TRUE" => TRUE,
+            "FALSE" => FALSE,
+            _ => return None,
+        };
+        Some(kind)
+    }
+
     pub fn from_register(s: &str) -> Option<SyntaxKind> {
         let kind = match s {
             "SP" => SP,
@@ -92,6 +105,15 @@ impl SyntaxKind {
                 } else if rest.parse::<Condition>().is_ok() {
                     return Some((op, Some((code.len(), COND))));
                 }
+            }
+        }
+        None
+    }
+
+    pub fn from_directive(s: &str) -> Option<crate::Directive> {
+        for &(dir, code) in crate::DIRECTIVES {
+            if s.to_ascii_uppercase() == code {
+                return Some(dir);
             }
         }
         None

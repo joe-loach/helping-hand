@@ -46,8 +46,24 @@ impl<'a> Cursor<'a> {
         if !self.at(atom) {
             return None;
         }
-        let data = self.data();
+        let data = self.data()?;
         self.pos += 1;
+        Some(data)
+    }
+
+    pub fn eat_any(&mut self) -> Option<u32> {
+        self.current().and_then(|curr| self.eat(curr))
+    }
+
+    pub fn eat_while(&mut self, pred: impl Fn(Atom) -> bool) -> Vec<u32> {
+        let mut data = vec![];
+        while let Some(c) = self.current() {
+            if pred(c) {
+                data.push(self.bump(c));
+            } else {
+                break;
+            }
+        }
         data
     }
 

@@ -37,10 +37,15 @@ impl<'t> LexedStr<'t> {
                 IDENT => {
                     if let Some(kind) = SyntaxKind::from_register(token_text) {
                         kind
+                    } else if let Some(dir) = SyntaxKind::from_directive(token_text) {
+                        has_args = dir.has_args();
+                        DIRECTIVE
                     } else if let Some((op, cond)) = SyntaxKind::from_opcode(token_text) {
                         has_args = op.has_args();
                         split_id = cond;
                         OPCODE
+                    } else if let Some(kw) = SyntaxKind::from_keyword(token_text) {
+                        kw
                     } else {
                         IDENT
                     }
@@ -57,7 +62,7 @@ impl<'t> LexedStr<'t> {
                 pos += token.len;
             }
 
-            if kind == OPCODE && has_args {
+            if matches!(kind, OPCODE | DIRECTIVE) && has_args {
                 res.push(HAS_ARGS, pos);
             }
 

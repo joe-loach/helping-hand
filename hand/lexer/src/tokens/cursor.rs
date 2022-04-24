@@ -30,7 +30,11 @@ impl<'a> Cursor<'a> {
     }
 
     pub(crate) fn peek(&mut self) -> Option<char> {
-        self.chars.clone().next()
+        self.peek_nth(0)
+    }
+
+    pub(crate) fn peek_nth(&mut self, n: usize) -> Option<char> {
+        self.chars.clone().nth(n)
     }
 
     pub(crate) fn eat(&mut self) -> Option<char> {

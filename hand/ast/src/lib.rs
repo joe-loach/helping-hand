@@ -107,12 +107,13 @@ fn api() {
 
     let stmts = ast.program().statements();
     for s in stmts {
-        match s.kind() {
-            StmtKind::Label(l) => print_label(l),
-            StmtKind::Instruction(i) => print_instr(i),
-            StmtKind::Both { label, instruction } => {
-                print_label(label);
-                print_instr(instruction);
+        if let Some(l) = s.label() {
+            print_label(l);
+        }
+        if let Some(kind) = s.body() {
+            match kind {
+                StmtBody::Instruction(i) => print_instr(i),
+                StmtBody::Meta(_m) => todo!(),
             }
         }
         println!();
@@ -187,6 +188,7 @@ fn api() {
                 }
                 print!("}}");
             }
+            ArgKind::Literal(lit) => print_lit(lit),
         }
     }
 
@@ -224,10 +226,16 @@ fn api() {
     }
 
     fn print_imm(imm: Immediate) {
-        print!(
-            "#{}{}",
-            if imm.sign().is_positive() { "" } else { "-" },
-            imm.value().unwrap_or(u32::MAX)
-        )
+        print!("#{}", if imm.sign().is_positive() { "" } else { "-" },);
+        print_lit(imm.literal());
+    }
+
+    fn print_lit(lit: Literal) {
+        match lit.kind() {
+            LiteralKind::Number(n) => print!("{}", n.value().unwrap_or(u32::MAX)),
+            LiteralKind::String(s) => print!("\"{}\"", s.value()),
+            LiteralKind::Char(c) => print!("'{}'", c.value()),
+            LiteralKind::Bool(b) => print!("{}", if b { "TRUE" } else { "FALSE" }),
+        }
     }
 }

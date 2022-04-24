@@ -56,10 +56,14 @@ fn run() -> anyhow::Result<()> {
     let ir = middle::lower(root);
     if emit == cli::Emit::IR {
         use middle::Atom;
-        use syntax::{Condition, Opcode, Register, RegisterList, Sign};
+        use syntax::{Condition, Directive, Opcode, Register, RegisterList, Sign};
         for stmt in &ir {
             for (&atom, &data) in stmt.iter() {
                 match atom {
+                    Atom::Directive => {
+                        let dir = middle::higher::<Directive>(data);
+                        print!("{} ", dir.as_str());
+                    }
                     Atom::Instruction => {
                         let op = middle::higher::<Opcode>(data);
                         print!("{}", op.as_str());
@@ -85,7 +89,9 @@ fn run() -> anyhow::Result<()> {
                         );
                     }
                     Atom::Label => print!("{}: ", data),
-                    Atom::Value => print!("{} ", data),
+                    Atom::Number => print!("{} ", data),
+                    Atom::Char => print!("{}", char::from_u32(data).unwrap()),
+                    Atom::Bool => print!("{}", if data == 1 { "TRUE" } else { "FALSE" }),
                     Atom::Address => print!("@ "),
                     Atom::Offset => print!("+= "),
                     Atom::Sign => {
