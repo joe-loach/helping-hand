@@ -192,8 +192,12 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             }).or_else(|| {
                 variant(args, |args| {
                     let rt = ir!("R")(args)?;
-                    let imm = args.eat(Label)? * 4;
-                    let u = 1; // TODO: once we calculate offset properly, we'll know the sign
+                    let pos = label_offset(args, labels)?;
+                    let (imm, u) = if pos >= pc {
+                        (pos - pc, 1)
+                    } else {
+                        (pc - pos, 0)
+                    };
                     inst!([cond:4] 0 1 0 | 1 | u | b | 0 | 1 | 1 1 1 1 [rt:4] [imm:12])
                 })
             }).or_else(|| {
@@ -225,10 +229,14 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
                 if (rt + 1) != rt2 {
                     return None;
                 }
-                let imm = args.eat(Label)? * 4;
+                let pos = label_offset(args, labels)?;
+                let (imm, u) = if pos >= pc {
+                    (pos - pc, 1)
+                } else {
+                    (pc - pos, 0)
+                };
                 let immh = imm.bits(4..8);
                 let imml = imm.bits(0..4);
-                let u = 1; // TODO: once we calculate offset properly, we'll know the sign
                 inst!([cond:4] 0 0 0 | 1 | u | 1 | 0 | 0 | 1 1 1 1 | [rt:4] [immh:4] 1 | 1 0 | 1 [imml:4])
             })
         }).or_else(|| {
@@ -255,10 +263,14 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             }).or_else(|| {
                 variant(args, |args| {
                     let rt = ir!("R")(args)?;
-                    let imm = args.eat(Label)? * 4;
+                    let pos = label_offset(args, labels)?;
+                    let (imm, u) = if pos >= pc {
+                        (pos - pc, 1)
+                    } else {
+                        (pc - pos, 0)
+                    };
                     let immh = imm.bits(4..8);
                     let imml = imm.bits(0..4);
-                    let u = 1; // TODO: once we calculate offset properly, we'll know the sign
                     inst!([cond:4] 0 0 0 | 1 | u | 1 | 0 | 1 | 1 1 1 1 [rt:4] [immh:4] 1 | s h | 1 [imml:4])
                 })
             }).or_else(|| {
