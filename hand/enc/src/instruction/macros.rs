@@ -11,7 +11,6 @@ macro_rules! inst {
         if $pos == 32 {
             Some($x)
         } else {
-            eprintln!("Instruction '{:032b}' is not 32 bits wide; is {} bits wide", $x, $pos);
             None
         }
     };

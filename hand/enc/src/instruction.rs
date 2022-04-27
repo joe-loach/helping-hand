@@ -3,17 +3,32 @@ mod macros;
 use macros::*;
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
-use crate::{variant, Is};
+use crate::{variant, Is, LabelValue};
 use intbits::Bits;
 use middle::{consts::*, higher};
 use middle::{Atom::*, Cursor};
 
-pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
+fn pc(x: u32) -> u32 {
+    align(x + 8, 4)
+}
+
+fn align(x: u32, to: u32) -> u32 {
+    x + (x % to)
+}
+
+pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: u32, op: u32) -> Option<u32> {
     let op = higher::<syntax::Opcode>(op);
     let cond = args.bump(Condition);
 
     use syntax::Opcode::*;
+
+    let off = match labels[&lbl] {
+        LabelValue::Offset(x) => x,
+        _ => unreachable!(),
+    };
+    let pc = pc(off);
 
     let encoded = match op {
         ADC | ADCS => {
@@ -43,14 +58,21 @@ pub(crate) fn encode(args: &mut Cursor, op: u32) -> Option<u32> {
         }
         ADR => variant(args, |args| {
             let rd = ir!("R")(args)?;
-            let imm = args.eat(Label)?;
-            // TODO: there are two different encodings for this,
-            // based on if the offset is positive or negative
-            // TODO: should be offset from Align(PC, 4)
-            inst!([cond:4] 0 0 1 0 | 1 0 0 | 0 | 1 1 1 1 [rd:4] [imm:12])
+            let pos = label_offset(args, labels)?;
+            let (imm, p, n) = if pos >= pc {
+                (pos - pc, 1, 0)
+            } else {
+                (pc - pos, 0, 1)
+            };
+            inst!([cond:4] 0 0 1 0 | p n 0 | 0 | 1 1 1 1 [rd:4] [imm:12])
         }),
         B => variant(args, |args| {
-            let imm = args.eat(Label)?;
+            let pos = label_offset(args, labels)?;
+            let imm = if pos >= pc {
+                (pos - pc) / 4
+            } else {
+                u32::MAX - ((pc - pos) / 4) + 1
+            };
             inst!([cond:4] 1 0 1 | 0 [imm:24])
         }),
         BFC => variant(args, |args| {
@@ -530,4 +552,13 @@ fn register_offset(args: &mut Cursor) -> Option<(u32, bool)> {
     let u = args.eat(Sign)? == sign::POSITIVE;
     let reg = args.eat(Register)?;
     Some((reg, u))
+}
+
+fn label_offset(args: &mut Cursor, labels: &HashMap<u32, LabelValue>) -> Option<u32> {
+    let lbl = args.eat(Label)?;
+    let val = labels[&lbl];
+    match val {
+        LabelValue::Offset(x) => Some(x),
+        _ => None,
+    }
 }

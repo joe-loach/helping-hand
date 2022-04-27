@@ -1,15 +1,23 @@
-use middle::Atom::*;
+use std::collections::HashMap;
+
 use middle::consts::*;
+use middle::Atom::*;
 use middle::{higher, Cursor};
 use syntax::Directive::{self, *};
 
-use crate::{Binary, variant, Is};
+use crate::{variant, Binary, Is, LabelValue};
 
 // https://developer.arm.com/documentation/101754/0617/armclang-Reference/armclang-Integrated-Assembler/Data-definition-directives?lang=en
 // https://developer.arm.com/documentation/dui0742/k/Migrating-from-armasm-to-the-armclang-Integrated-Assembler/Data-definition-directives?lang=en
 // https://developer.arm.com/documentation/dui0802/b/Directives-Reference/Alphabetical-list-of-directives
 
-pub(super) fn encode(bin: &mut Binary, args: &mut Cursor, op: u32) -> Option<()> {
+pub(super) fn encode(
+    bin: &mut Binary,
+    args: &mut Cursor,
+    labels: &mut HashMap<u32, LabelValue>,
+    lbl: u32,
+    op: u32,
+) -> Option<()> {
     let dir = higher::<Directive>(op);
 
     match dir {
@@ -53,7 +61,15 @@ pub(super) fn encode(bin: &mut Binary, args: &mut Cursor, op: u32) -> Option<()>
             })?;
             bin.extend_with_n(size as usize, 0);
         }
-        EQU => (),
+        EQU => {
+            let expr = variant(args, |args| {
+                args.eat(Sign).is(sign::POSITIVE)?;
+                let expr = args.eat(Number)?;
+                Some(expr)
+            })?;
+            // change the lbl to be a expr value
+            labels.insert(lbl, LabelValue::Expr(expr));
+        }
     };
 
     if !args.finished() {

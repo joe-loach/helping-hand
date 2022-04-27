@@ -1,8 +1,7 @@
 mod directive;
 mod instruction;
 
-// TODO: EQU directive
-// the equ directive tells the assembler to define a label's value but emit no binary data
+use std::collections::HashMap;
 
 pub struct Binary {
     inner: Vec<u8>,
@@ -14,6 +13,7 @@ impl Binary {
     }
 
     pub(crate) fn push(&mut self, data: u32) {
+        // this compiler is little-endian
         let bytes = data.to_le_bytes();
         self.inner.extend_from_slice(&bytes);
     }
@@ -35,18 +35,55 @@ impl Binary {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum LabelValue {
+    Offset(u32),
+    Expr(u32),
+}
+
 pub fn encode(ir: middle::IR) -> Binary {
     use middle::Atom::*;
 
-    let mut binary = Binary::new();
+    // label -> value
+    let mut labels = HashMap::new();
 
+    // PASS 1:
+    // calculate label offsets
+    {
+        let mut pos = 0_u32;
+        for stmt in ir.iter() {
+            let mut cursor = stmt.cursor();
+
+            let lbl = cursor.bump(Label);
+
+            if cursor.eat(Instruction).is_some() {
+                // instructions are always a word
+                pos += 4;
+            } else if let Some(op) = cursor.eat(Directive) {
+                // HACK: encode to a fake binary
+                let mut test = Binary::new();
+                directive::encode(&mut test, &mut cursor, &mut labels, lbl, op);
+                let size = test.len() as u32;
+                pos += size;
+            } else {
+                // a label by itself, one word
+                pos += 4;
+            };
+
+            labels.insert(lbl, LabelValue::Offset(pos));
+        }
+    }
+
+    // PASS 2:
+    // actually encode the binary
+    let mut binary = Binary::new();
     for stmt in ir.iter() {
         let mut cursor = stmt.cursor();
 
-        cursor.bump(Label);
+        let lbl = cursor.bump(Label);
 
         if let Some(op) = cursor.eat(Instruction) {
-            let enc = if let Some(instr) = instruction::encode(&mut cursor, op) {
+            let enc = if let Some(instr) = instruction::encode(&mut cursor, &labels, lbl, op) {
                 instr
             } else {
                 // TODO: Errors
@@ -54,7 +91,7 @@ pub fn encode(ir: middle::IR) -> Binary {
             };
             binary.push(enc);
         } else if let Some(op) = cursor.eat(Directive) {
-            if directive::encode(&mut binary, &mut cursor, op).is_none() {
+            if directive::encode(&mut binary, &mut cursor, &mut labels, lbl, op).is_none() {
                 binary.push(u32::MAX);
             }
         } else {
