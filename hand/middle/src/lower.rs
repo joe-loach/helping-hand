@@ -47,7 +47,7 @@ use std::collections::HashMap;
 use crate::{consts::*, IR};
 use ast::Token;
 
-type LabelMap = HashMap<String, (Atom, u32)>;
+type LabelMap = HashMap<String, u32>;
 
 /// Outputs IR in the form:
 ///
@@ -63,13 +63,12 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
 
     for (stmt, pos) in root.program().statements().zip(0_u32..) {
         // LABEL
-        let label = stmt.label();
         ir.push(Label, pos);
         // BODY?
         if let Some(body) = stmt.body() {
             match body {
                 ast::StmtBody::Instruction(instr) => instruction(&mut ir, instr, &labels),
-                ast::StmtBody::Meta(meta) => directive(&mut ir, label, meta, &mut labels),
+                ast::StmtBody::Meta(meta) => directive(&mut ir, meta, &mut labels),
             }
         }
         // move onto the next statement
@@ -77,7 +76,7 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
     }
     return ir;
 
-    fn directive(ir: &mut IR, label: Option<ast::Label>, meta: ast::Meta, labels: &mut LabelMap) {
+    fn directive(ir: &mut IR, meta: ast::Meta, labels: &mut LabelMap) {
         let dir = meta.directive().syntax();
         ir.push(Directive, dir as u32);
         if let Some(args) = meta.args() {
@@ -110,8 +109,8 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
             ast::ArgKind::Shift(sft) => shift(ir, sft),
             ast::ArgKind::Label(lbl) => {
                 let name = lbl.name().ident();
-                if let Some(&(atom, data)) = labels.get(name.text()) {
-                    ir.push(atom, data);
+                if let Some(&data) = labels.get(name.text()) {
+                    ir.push(Atom::Label, data);
                 } else {
                     ir.error("Label is not defined");
                 }
@@ -226,12 +225,12 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
 
 /// Must iterate through the ast collecting all the labels beforehand.
 /// This allows forward references with label names.
-pub(super) fn labels(root: &ast::Root) -> HashMap<String, (Atom, u32)> {
+pub(super) fn labels(root: &ast::Root) -> LabelMap {
     let mut map = HashMap::new();
     for (stmt, pos) in root.program().statements().zip(0_u32..) {
         if let Some(label) = stmt.label() {
             let name = label.name().ident().text().to_owned();
-            map.insert(name, (Atom::Label, pos));
+            map.insert(name, pos);
         }
     }
     map
