@@ -22,6 +22,10 @@ impl Binary {
         self.inner.push(byte);
     }
 
+    pub(crate) fn extend_with(&mut self, bytes: &[u8]) {
+        self.inner.extend_from_slice(bytes)
+    }
+
     pub(crate) fn extend_with_n(&mut self, n: usize, byte: u8) {
         self.inner.extend((0..n).map(|_| byte));
     }

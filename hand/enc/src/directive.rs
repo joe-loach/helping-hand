@@ -23,18 +23,18 @@ pub(super) fn encode(
     match dir {
         ALIGN => {
             const WORD_BOUNDARY: usize = 4;
-            let bytes_to_align = bin.len() % WORD_BOUNDARY;
+            let bytes_to_align = 4 - (bin.len() % WORD_BOUNDARY);
             for _ in 0..bytes_to_align {
                 bin.push_byte(0);
             }
         }
         DCB | DEFB => {
-            variant(args, |args| {
+            let bytes = variant(args, |args| {
                 Some({
                     let mut data = vec![];
                     while let Some(c) = args.current() {
                         match c {
-                            Char | Number => data.push(args.bump(c)),
+                            Char | Number => data.push((args.bump(c) & 0xFF) as u8),
                             Sign => {
                                 args.bump(Sign);
                             }
@@ -43,7 +43,8 @@ pub(super) fn encode(
                     }
                     data
                 })
-            });
+            })?;
+            bin.extend_with(&bytes);
         }
         DCD | DEFW => {
             let word = variant(args, |args| {
