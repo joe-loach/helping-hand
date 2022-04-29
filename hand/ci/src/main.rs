@@ -61,15 +61,15 @@ fn run() -> anyhow::Result<()> {
             for (&atom, &data) in stmt.iter() {
                 match atom {
                     Atom::Directive => {
-                        let dir = middle::higher::<Directive>(data);
+                        let dir = unsafe { middle::higher::<Directive>(data) };
                         print!("{} ", dir.as_str());
                     }
                     Atom::Instruction => {
-                        let op = middle::higher::<Opcode>(data);
+                        let op = unsafe { middle::higher::<Opcode>(data) };
                         print!("{}", op.as_str());
                     }
                     Atom::Condition => {
-                        let cond = middle::higher::<Condition>(data);
+                        let cond = unsafe { middle::higher::<Condition>(data) };
                         print!(
                             "{} ",
                             if cond != Condition::AL {
@@ -81,7 +81,7 @@ fn run() -> anyhow::Result<()> {
                     }
                     Atom::Shift => print!("{} ", data),
                     Atom::Register => {
-                        let reg = middle::higher::<Register>(data);
+                        let reg = unsafe { middle::higher::<Register>(data) };
                         print!(
                             "{}{} ",
                             reg.as_str(),
@@ -95,7 +95,7 @@ fn run() -> anyhow::Result<()> {
                     Atom::Address => print!("@ "),
                     Atom::Offset => print!("+= "),
                     Atom::Sign => {
-                        let sign = middle::higher::<Sign>(data);
+                        let sign = unsafe { middle::higher::<Sign>(data) };
                         print!(
                             "{}",
                             if sign == Sign::Negative {
@@ -106,7 +106,7 @@ fn run() -> anyhow::Result<()> {
                         );
                     }
                     Atom::RegisterList => {
-                        let list = middle::higher::<RegisterList>(data);
+                        let list = unsafe { middle::higher::<RegisterList>(data) };
                         print!("{{{:016b}}}", list.flags);
                     }
                     Atom::Error => print!("ERROR "),

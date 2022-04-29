@@ -19,7 +19,7 @@ fn align(x: u32, to: u32) -> u32 {
 }
 
 pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: u32, op: u32) -> Option<u32> {
-    let op = higher::<syntax::Opcode>(op);
+    let op = unsafe { higher::<syntax::Opcode>(op) };
     let cond = args.bump(Condition);
 
     use syntax::Opcode::*;

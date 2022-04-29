@@ -18,7 +18,7 @@ pub(super) fn encode(
     lbl: u32,
     op: u32,
 ) -> Option<()> {
-    let dir = higher::<Directive>(op);
+    let dir = unsafe { higher::<Directive>(op) };
 
     match dir {
         ALIGN => {
