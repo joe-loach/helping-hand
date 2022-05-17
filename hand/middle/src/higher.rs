@@ -1,4 +1,4 @@
-use core::mem;
+//! Contains unsafe conversions to `syntax` representations from raw data.
 
 /// # Safety
 /// We know how the conversions to u32 are made,
@@ -15,6 +15,8 @@ pub unsafe trait FromRaw {
 pub unsafe fn higher<T: FromRaw>(data: u32) -> T {
     FromRaw::from(data)
 }
+
+use core::mem;
 
 unsafe impl FromRaw for syntax::Directive {
     unsafe fn from(x: u32) -> Self {
@@ -55,5 +57,26 @@ unsafe impl FromRaw for syntax::RegisterList {
     unsafe fn from(x: u32) -> Self {
         debug_assert!(x <= u16::MAX as u32);
         mem::transmute(x as u16)
+    }
+}
+
+unsafe impl FromRaw for syntax::AddressKind {
+    unsafe fn from(x: u32) -> Self {
+        debug_assert!(x <= 0b11);
+        mem::transmute(x as u8)
+    }
+}
+
+unsafe impl FromRaw for syntax::OffsetKind {
+    unsafe fn from(x: u32) -> Self {
+        debug_assert!(x <= 0b1);
+        mem::transmute(x as u8)
+    }
+}
+
+unsafe impl FromRaw for syntax::Shift {
+    unsafe fn from(x: u32) -> Self {
+        debug_assert!(x <= 0b11);
+        mem::transmute(x as u8)
     }
 }

@@ -44,12 +44,24 @@ impl Node for Address {
 }
 
 impl Address {
+    pub fn syntax(&self) -> syntax::AddressKind {
+        match self.kind() {
+            AddrKind::Offset(_) => syntax::AddressKind::Offset,
+            AddrKind::PreInc(_) => syntax::AddressKind::PreInc,
+            AddrKind::PostInc(_) => syntax::AddressKind::PostInc,
+        }
+    }
+
     pub fn kind(&self) -> AddrKind {
         AddrOffset::cast(self.0.clone())
             .map(AddrKind::Offset)
             .or_else(|| AddrPre::cast(self.0.clone()).map(AddrKind::PreInc))
             .or_else(|| AddrPost::cast(self.0.clone()).map(AddrKind::PostInc))
             .unwrap()
+    }
+
+    pub fn offset(&self) -> Option<Offset> {
+        child(self.node())
     }
 
     pub fn base(&self) -> Register {
@@ -90,6 +102,13 @@ impl Node for Offset {
 }
 
 impl Offset {
+    pub fn syntax(&self) -> syntax::OffsetKind {
+        match self.kind() {
+            OffsetKind::Immediate(_) => syntax::OffsetKind::Value,
+            OffsetKind::Register(_) => syntax::OffsetKind::Register,
+        }
+    }
+
     pub fn kind(&self) -> OffsetKind {
         OffsetImm::cast(self.0.clone())
             .map(OffsetKind::Immediate)

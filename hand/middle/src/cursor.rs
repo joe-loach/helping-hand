@@ -1,4 +1,4 @@
-use crate::{Atom, Stmt};
+use crate::{Atom, Stmt, AtomKind};
 
 pub struct Checkpoint(usize);
 
@@ -26,40 +26,40 @@ impl<'a> Cursor<'a> {
         self.pos = point.0;
     }
 
-    pub fn nth(&self, n: usize) -> Option<Atom> {
-        self.stmt.get(self.pos + n).map(|(atom, _)| atom)
+    pub fn nth(&self, n: usize) -> Option<AtomKind> {
+        self.stmt.get(self.pos + n).map(|at| at.kind)
     }
 
-    pub fn current(&self) -> Option<Atom> {
+    pub fn current(&self) -> Option<AtomKind> {
         self.nth(0)
     }
 
+    pub fn at(&self, kind: AtomKind) -> bool {
+        self.current().map(|at| at == kind).unwrap_or(false)
+    }
+
     pub fn data(&self) -> Option<u32> {
-        self.stmt.get(self.pos).map(|(_, data)| data)
+        self.stmt.get(self.pos).map(|at| at.data)
     }
 
-    pub fn at(&self, atom: Atom) -> bool {
-        self.current().map(|it| it == atom).unwrap_or(false)
-    }
-
-    pub fn eat(&mut self, atom: Atom) -> Option<u32> {
-        if !self.at(atom) {
+    pub fn eat(&mut self, kind: AtomKind) -> Option<u32> {
+        if !self.at(kind) {
             return None;
         }
-        let data = self.data()?;
+        let data = self.data().unwrap();
         self.pos += 1;
         Some(data)
     }
 
     pub fn eat_any(&mut self) -> Option<u32> {
-        self.current().and_then(|curr| self.eat(curr))
+        self.current().and_then(|kind| self.eat(kind))
     }
 
-    pub fn eat_while(&mut self, pred: impl Fn(Atom) -> bool) -> Vec<u32> {
+    pub fn eat_while(&mut self, pred: impl Fn(AtomKind) -> bool) -> Vec<u32> {
         let mut data = vec![];
-        while let Some(c) = self.current() {
-            if pred(c) {
-                data.push(self.bump(c));
+        while let Some(kind) = self.current() {
+            if pred(kind) {
+                data.push(self.bump(kind));
             } else {
                 break;
             }
@@ -67,10 +67,10 @@ impl<'a> Cursor<'a> {
         data
     }
 
-    pub fn bump(&mut self, atom: Atom) -> u32 {
-        match self.eat(atom) {
-            Some(n) => n,
-            None => panic!("bumping {atom:?} @ {} failed", self.pos),
+    pub fn bump(&mut self, kind: AtomKind) -> u32 {
+        match self.eat(kind) {
+            Some(data) => data,
+            None => panic!("bumping {kind:?} @ {} failed", self.pos),
         }
     }
 
@@ -80,12 +80,12 @@ impl<'a> Cursor<'a> {
 }
 
 impl<'a> Iterator for Cursor<'a> {
-    type Item = (Atom, u32);
+    type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(pair) = self.stmt.get(self.pos) {
+        if let Some(atom) = self.stmt.get(self.pos) {
             self.pos += 1;
-            Some(pair)
+            Some(atom)
         } else {
             None
         }

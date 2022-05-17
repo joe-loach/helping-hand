@@ -4,6 +4,9 @@ mod ops;
 mod reg;
 mod sign;
 mod directive;
+mod shift;
+mod address;
+mod offset;
 
 pub use cond::*;
 pub use kind::*;
@@ -11,6 +14,9 @@ pub use ops::*;
 pub use reg::*;
 pub use sign::*;
 pub use directive::*;
+pub use shift::*;
+pub use address::*;
+pub use offset::*;
 
 pub extern crate rowan;
 

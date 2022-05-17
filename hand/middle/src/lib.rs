@@ -16,7 +16,45 @@ mod lower;
 pub use cursor::*;
 pub use higher::*;
 pub use ir::*;
-pub use lower::*;
+
+#[derive(Debug, Clone, Copy)]
+pub struct Atom {
+    pub kind: AtomKind,
+    data: u32,
+}
+
+impl Atom {
+    pub fn new(kind: AtomKind, data: u32) -> Self {
+        Self { kind, data }
+    }
+
+    pub fn raw(&self) -> u32 {
+        self.data
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtomKind {
+    Instruction,
+    Directive,
+    Condition,
+    Shift,
+    Register,
+    Address,
+    Sign,
+    Label,
+    Number,
+    Char,
+    Bool,
+    Offset,
+    RegisterList,
+    Error,
+}
+
+// Assert the size is the same as a u64
+const _: fn() = || {
+    let _ = core::mem::transmute::<u64, Atom>;
+};
 
 pub fn lower(root: ast::Root) -> IR {
     let labels = lower::labels(&root);

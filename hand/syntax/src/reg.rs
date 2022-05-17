@@ -26,7 +26,7 @@ pub struct RegisterList {
 }
 
 impl Register {
-    pub fn value(&self) -> u8 {
+    pub fn value(&self) -> u32 {
         use Register::*;
         match self {
             R0 => 0b0000,

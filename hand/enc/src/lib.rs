@@ -1,3 +1,5 @@
+mod bits;
+mod cursor;
 mod directive;
 mod instruction;
 
@@ -45,11 +47,13 @@ pub enum LabelValue {
     Expr(u32),
 }
 
+pub type LabelMap = HashMap<u32, LabelValue>;
+
 pub fn encode(ir: middle::IR) -> Binary {
-    use middle::Atom::*;
+    use middle::AtomKind::*;
 
     // label -> value
-    let mut labels = HashMap::new();
+    let mut labels = LabelMap::new();
 
     // PASS 1:
     // calculate label offsets
@@ -104,46 +108,4 @@ pub fn encode(ir: middle::IR) -> Binary {
     }
 
     binary
-}
-
-use middle::Cursor;
-
-pub(crate) fn variant<T>(
-    cursor: &mut Cursor,
-    f: impl FnOnce(&mut Cursor) -> Option<T>,
-) -> Option<T> {
-    let c = cursor.checkpoint();
-    let res = f(cursor);
-    if res.is_none() {
-        cursor.rewind(c);
-    }
-    res
-}
-
-pub(crate) trait Is {
-    fn is(&self, x: u32) -> Option<()>;
-}
-
-impl Is for Option<u32> {
-    fn is(&self, x: u32) -> Option<()> {
-        if let Some(y) = self {
-            if x == *y {
-                Some(())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-}
-
-impl Is for u32 {
-    fn is(&self, x: u32) -> Option<()> {
-        if *self == x {
-            Some(())
-        } else {
-            None
-        }
-    }
 }

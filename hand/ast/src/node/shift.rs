@@ -8,6 +8,17 @@ pub enum ShiftData {
 }
 
 impl Shift {
+    pub fn syntax(&self) -> syntax::Shift {
+        use syntax::Opcode;
+        match self.op().code().syntax() {
+            Opcode::LSL => syntax::Shift::LSL,
+            Opcode::LSR => syntax::Shift::LSR,
+            Opcode::ASR => syntax::Shift::ASR,
+            Opcode::RRX | Opcode::ROR => syntax::Shift::ROR,
+            _ => unreachable!()
+        }
+    }
+
     pub fn op(&self) -> Op {
         child(self.node()).unwrap()
     }

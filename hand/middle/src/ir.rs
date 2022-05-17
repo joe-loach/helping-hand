@@ -1,22 +1,14 @@
-use crate::{cursor::Cursor, Atom};
+use crate::{cursor::Cursor, Atom, AtomKind};
 
-pub struct Stmt<'a>(&'a [Atom], &'a [u32]);
+pub struct Stmt<'a>(&'a [Atom]);
 
 impl Stmt<'_> {
-    pub fn get(&self, index: usize) -> Option<(Atom, u32)> {
-        self.0.get(index).map(|&atom| (atom, self.1[index]))
+    pub fn get(&self, index: usize) -> Option<Atom> {
+        self.0.get(index).copied()
     }
 
     pub fn atoms(&self) -> &[Atom] {
         self.0
-    }
-
-    pub fn data(&self) -> &[u32] {
-        self.1
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (&Atom, &u32)> {
-        self.atoms().iter().zip(self.data().iter())
     }
 
     pub fn cursor(&self) -> Cursor {
@@ -27,7 +19,6 @@ impl Stmt<'_> {
 pub struct IR {
     stmts: Vec<u32>,
     atoms: Vec<Atom>,
-    data: Vec<u32>,
     errors: Vec<String>,
 }
 
@@ -36,7 +27,6 @@ impl IR {
         IR {
             stmts: vec![0],
             atoms: Vec::new(),
-            data: Vec::new(),
             errors: Vec::new(),
         }
     }
@@ -45,21 +35,20 @@ impl IR {
         self.stmts.push(self.atoms.len() as u32);
     }
 
-    pub(crate) fn push(&mut self, atom: Atom, data: u32) {
-        self.atoms.push(atom);
-        self.data.push(data);
+    pub(crate) fn push(&mut self, kind: AtomKind, data: u32) {
+        self.atoms.push(Atom::new(kind, data));
     }
 
     pub(crate) fn error(&mut self, msg: impl Into<String>) {
         self.errors.push(msg.into());
-        self.push(Atom::Error, self.errors.len() as u32);
+        // self.push(Atom::Error, self.errors.len() as u32);
     }
 
     pub fn stmt(&self, i: usize) -> Option<Stmt<'_>> {
         if i + 1 < self.stmts.len() {
             let start = self.stmts[i] as usize;
             let end = self.stmts[i + 1] as usize;
-            Some(Stmt(&self.atoms[start..end], &self.data[start..end]))
+            Some(Stmt(&self.atoms[start..end]))
         } else {
             None
         }

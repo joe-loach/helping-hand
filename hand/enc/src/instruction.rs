@@ -1,14 +1,11 @@
-mod macros;
-
-use macros::*;
+use crate::bits::{self, ToWord};
+use crate::cursor::*;
+use crate::LabelValue;
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
-use crate::{variant, Is, LabelValue};
-use intbits::Bits;
-use middle::{consts::*, higher};
-use middle::{Atom::*, Cursor};
+use middle::higher;
+use middle::{AtomKind::*, Cursor};
 
 fn pc(x: u32) -> u32 {
     align(x + 8, 4)
@@ -18,13 +15,18 @@ fn align(x: u32, to: u32) -> u32 {
     x + (x % to)
 }
 
-pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: u32, op: u32) -> Option<u32> {
+pub(crate) fn encode(
+    args: &mut Cursor,
+    labels: &crate::LabelMap,
+    curr: u32,
+    op: u32,
+) -> Option<u32> {
     let op = unsafe { higher::<syntax::Opcode>(op) };
     let cond = args.bump(Condition);
 
     use syntax::Opcode::*;
 
-    let off = match labels[&lbl] {
+    let off = match labels[&curr] {
         LabelValue::Offset(x) => x,
         _ => unreachable!(),
     };
@@ -35,9 +37,8 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             let s = op == ADCS;
             variant(args, |args| {
                 let (rd, rn) = ir!("{R} R")(args)?;
-                ir!("+")(args)?;
                 // TODO: do imm12 parsing fn(u32) -> Option<u32>
-                let imm = args.eat(Number)?;
+                let imm = signed_number(args, syntax::Sign::Positive)?;
                 inst!([cond:4] 0 0 1 0 | 1 0 1 | s | [rn:4] [rd: 4] [imm:12])
             })
             .or_else(|| {
@@ -50,15 +51,14 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             .or_else(|| {
                 variant(args, |args| {
                     let (rd, rn, rm) = ir!("{R} R R")(args)?;
-                    let shift = args.eat(Shift)?;
-                    let rs = args.eat(Register)?;
+                    let (shift, rs) = shift_reg(args)?;
                     inst!([cond:4] 0 0 0 0 | 1 0 1 | s | [rn:4] [rd:4] [rs:4] 0 [shift:2] 1 [rm:4])
                 })
             })
         }
         ADR => variant(args, |args| {
-            let rd = ir!("R")(args)?;
-            let pos = label_offset(args, labels)?;
+            let rd = register(args)?;
+            let pos = label_value(args, labels)?;
             let (imm, p, n) = if pos >= pc {
                 (pos - pc, 1, 0)
             } else {
@@ -67,7 +67,7 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             inst!([cond:4] 0 0 1 0 | p n 0 | 0 | 1 1 1 1 [rd:4] [imm:12])
         }),
         B => variant(args, |args| {
-            let pos = label_offset(args, labels)?;
+            let pos = label_value(args, labels)?;
             let imm = if pos >= pc {
                 (pos - pc) / 4
             } else {
@@ -76,14 +76,12 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             inst!([cond:4] 1 0 1 | 0 [imm:24])
         }),
         BFC => variant(args, |args| {
-            let rd = ir!("R")(args)?;
-            ir!("+")(args)?;
-            let lsb = args.eat(Number)?;
+            let rd = register(args)?;
+            let lsb = signed_number(args, syntax::Sign::Positive)?;
             if !(0..=31).contains(&lsb) {
                 return None;
             }
-            ir!("+")(args)?;
-            let width = args.eat(Number)?;
+            let width = signed_number(args, syntax::Sign::Positive)?;
             if !(1..=(32 - lsb)).contains(&width) {
                 return None;
             }
@@ -92,13 +90,11 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
         }),
         BFI => variant(args, |args| {
             let (rd, rn) = ir!("R R")(args)?;
-            ir!("+")(args)?;
-            let lsb = args.eat(Number)?;
+            let lsb = signed_number(args, syntax::Sign::Positive)?;
             if !(0..=31).contains(&lsb) {
                 return None;
             }
-            ir!("+")(args)?;
-            let width = args.eat(Number)?;
+            let width = signed_number(args, syntax::Sign::Positive)?;
             if !(1..=(32 - lsb)).contains(&width) {
                 return None;
             }
@@ -107,11 +103,16 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
         }),
         // BIC(S)
         BL => variant(args, |args| {
-            let imm = args.eat(Label)?;
+            let pos = label_value(args, labels)?;
+            let imm = if pos >= pc {
+                (pos - pc) / 4
+            } else {
+                u32::MAX - ((pc - pos) / 4) + 1
+            };
             inst!([cond:4] 1 0 1 | 1 | [imm:24])
         }),
         BX => variant(args, |args| {
-            let rm = ir!("R")(args)?;
+            let rm = register(args)?;
             inst!([cond:4] 0 0 0 1 0 0 1 0 | 1 1 1 1 | 1 1 1 1 | 1 1 1 1 | 0 0 0 1 | [rm:4])
         }),
         CLZ => variant(args, |args| {
@@ -121,10 +122,9 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
         CMN | CMP => {
             let s = op == CMN;
             variant(args, |args| {
-                let rn = ir!("R")(args)?;
-                let sign = args.eat(Sign)?;
-                let imm = args.eat(Number)?;
-                let s = if sign == sign::NEGATIVE { !s } else { s };
+                let rn = register(args)?;
+                let (sign, imm) = number(args)?;
+                let s = if sign.is_negative() { !s } else { s };
                 inst!([cond:4] 0 0 1 1 0 | 1 s | 1 | [rn:4] | 0 0 0 0 | [imm:12])
             })
             .or_else(|| {
@@ -138,18 +138,18 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
                 variant(args, |args| {
                     let (rn, rm) = ir!("R R")(args)?;
                     let shift = args.eat(Shift)?;
-                    let rs = ir!("R")(args)?;
+                    let rs = register(args)?;
                     inst!([cond:4] 0 0 0 1 0 | 1 s | 1 | [rn:4] | 0 0 0 0 | [rs:4] 0 [shift:2] 1 [rm:4])
                 })
             })
         }
         // EOR(S)
         LDA | LDAB | LDAH => variant(args, |args| {
-            let rt = ir!("R")(args)?;
-            if args.eat(Address)? != address::OFFSET {
+            let rt = register(args)?;
+            let (addr, rn) = address(args)?;
+            if !addr.is_offset() {
                 return None;
             }
-            let rn = ir!("R")(args)?;
             let width = match op {
                 LDA => 0b00,
                 LDAB => 0b10,
@@ -159,40 +159,36 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             inst!([cond:4] 0 0 0 1 1 [width:2] 1 [rn:4] [rt:4] 1 1 0 0 | 1 0 0 1 | 1 1 1 1)
         }),
         LDM | LDMIA | LDMFD => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 0 | 1 | 0 | w | 1 | [rn:4] [list:16])
         }),
         LDMDA | LDMFA => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 0 | 0 | 0 | w | 1 | [rn:4] [list:16])
         }),
         LDMDB | LDMEA => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 1 | 0 | 0 | w | 1 | [rn:4] [list:16])
         }),
         LDMIB | LDMED => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 1 | 1 | 0 | w | 1 | [rn:4] [list:16])
         }),
         LDR | LDRB => {
             let b = op == LDRB;
             variant(args, |args| {
-                let rt = ir!("R")(args)?;
-                let (p, w, rn) = address(args)?;
+                let rt = register(args)?;
+                let (addr, rn) = address(args)?;
                 let (imm, u) = value_offset(args)?;
-                inst!([cond: 4] 0 1 0 | p | u | b | w | 1 | [rn:4] [rt:4] [imm:12])
+                inst!([cond: 4] 0 1 0 | {addr.p()} | u | b | {addr.w()} | 1 | [rn:4] [rt:4] [imm:12])
             }).or_else(|| {
                 variant(args, |args| {
-                    let rt = ir!("R")(args)?;
-                    let pos = label_offset(args, labels)?;
+                    let rt = register(args)?;
+                    let pos = label_value(args, labels)?;
                     let (imm, u) = if pos >= pc {
                         (pos - pc, 1)
                     } else {
@@ -202,83 +198,83 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
                 })
             }).or_else(|| {
                 variant(args, |args| {
-                    let rt = ir!("R")(args)?;
-                    let (p, w, rn) = address(args)?;
+                    let rt = register(args)?;
+                    let (addr, rn) = address(args)?;
                     let (rm, u) = register_offset(args)?;
                     let (shift, imm) = shift_imm(args)?;
-                    inst!([cond:4] 0 1 1 | p | u | b | w | 1 | [rn:4] [rt:4] [imm:5] [shift:2] 0 [rm:4])
+                    inst!([cond:4] 0 1 1 | {addr.p()} | u | b | {addr.w()} | 1 | [rn:4] [rt:4] [imm:5] [shift:2] 0 [rm:4])
                 })
             })
         }
         LDRD => variant(args, |args| {
             let (rt, rt2) = ir!("R R")(args)?;
-            if rt % 2 != 0 || rt == 14 {
+            if rt.value() % 2 != 0 || rt.value() == 14 {
                 return None;
             }
-            if (rt + 1) != rt2 {
+            if (rt.value() + 1) != rt2.value() {
                 return None;
             }
-            let (p, w, rn) = address(args)?;
+            let (addr, rn) = address(args)?;
             let (imm, u) = value_offset(args)?;
-            let immh = imm.bits(4..8);
-            let imml = imm.bits(0..4);
-            inst!([cond:4] 0 0 0 | p | u | 1 | w | 0 [rn:4] [rt:4] [immh:4] 1 | 1 0 | 1 [imml:4])
+            let immh = bits::get(imm, 4..8);
+            let imml = bits::get(imm, 0..4);
+            inst!([cond:4] 0 0 0 | {addr.p()} | u | 1 | {addr.w()} | 0 [rn:4] [rt:4] [immh:4] 1 | 1 0 | 1 [imml:4])
         }).or_else(|| {
             variant(args, |args| {
                 let (rt, rt2) = ir!("R R")(args)?;
-                if (rt + 1) != rt2 {
+                if (rt.value() + 1) != rt2.value() {
                     return None;
                 }
-                let pos = label_offset(args, labels)?;
+                let pos = label_value(args, labels)?;
                 let (imm, u) = if pos >= pc {
                     (pos - pc, 1)
                 } else {
                     (pc - pos, 0)
                 };
-                let immh = imm.bits(4..8);
-                let imml = imm.bits(0..4);
+                let immh = bits::get(imm, 4..8);
+                let imml = bits::get(imm, 0..4);
                 inst!([cond:4] 0 0 0 | 1 | u | 1 | 0 | 0 | 1 1 1 1 | [rt:4] [immh:4] 1 | 1 0 | 1 [imml:4])
             })
         }).or_else(|| {
             variant(args, |args| {
                 let (rt, rt2) = ir!("R R")(args)?;
-                if (rt + 1) != rt2 {
+                if (rt.value() + 1) != rt2.value() {
                     return None;
                 }
-                let (p, w, rn) = address(args)?;
+                let (addr, rn) = address(args)?;
                 let (rm, u) = register_offset(args)?;
-                inst!([cond:4] 0 0 0 | p | u | 0 | w | 0 | [rn:4] [rt:4] 0 0 0 0 | 1 | 1 0 | 1 [rm:4])
+                inst!([cond:4] 0 0 0 | {addr.p()} | u | 0 | {addr.w()} | 0 | [rn:4] [rt:4] 0 0 0 0 | 1 | 1 0 | 1 [rm:4])
             })
         }),
         LDRH | LDRSB | LDRSH => {
             let h = matches!(op, LDRH | LDRSH);
             let s = matches!(op, LDRSB | LDRSH);
             variant(args, |args| {
-                let rt = ir!("R")(args)?;
-                let (p, w, rn) = address(args)?;
+                let rt = register(args)?;
+                let (addr, rn) = address(args)?;
                 let (imm, u) = value_offset(args)?;
-                let immh = imm.bits(4..8);
-                let imml = imm.bits(0..4);
-                inst!([cond:4] 0 0 0 | p | u | 1 | w | 1 | [rn:4] [rt:4] [immh:4] 1 | s h | 1 | [imml:4])
+                let immh = bits::get(imm, 4..8);
+                let imml = bits::get(imm, 0..4);
+                inst!([cond:4] 0 0 0 | {addr.p()} | u | 1 | {addr.w()} | 1 | [rn:4] [rt:4] [immh:4] 1 | s h | 1 | [imml:4])
             }).or_else(|| {
                 variant(args, |args| {
-                    let rt = ir!("R")(args)?;
-                    let pos = label_offset(args, labels)?;
+                    let rt = register(args)?;
+                    let pos = label_value(args, labels)?;
                     let (imm, u) = if pos >= pc {
                         (pos - pc, 1)
                     } else {
                         (pc - pos, 0)
                     };
-                    let immh = imm.bits(4..8);
-                    let imml = imm.bits(0..4);
+                    let immh = bits::get(imm, 4..8);
+                    let imml = bits::get(imm, 0..4);
                     inst!([cond:4] 0 0 0 | 1 | u | 1 | 0 | 1 | 1 1 1 1 [rt:4] [immh:4] 1 | s h | 1 [imml:4])
                 })
             }).or_else(|| {
                 variant(args, |args| {
-                    let rt = ir!("R")(args)?;
-                    let (p, w, rn) = address(args)?;
+                    let rt = register(args)?;
+                    let (addr, rn) = address(args)?;
                     let (rm, u) = register_offset(args)?;
-                    inst!([cond:4] 0 0 0 | p | u | 0 | w | 1 | [rn:4] [rt:4] 0 0 0 0 | 1 | s h | 1 | [rm:4])
+                    inst!([cond:4] 0 0 0 | {addr.p()} | u | 0 | {addr.w()} | 1 | [rn:4] [rt:4] 0 0 0 0 | 1 | s h | 1 | [rm:4])
                 })
             })
         },
@@ -286,7 +282,9 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             let s = op == LSLS;
             variant(args, |args| {
                 let (rd, rm) = ir!("{R} R")(args)?;
-                ir!("+")(args)?;
+                if !sign(args)?.is_positive() {
+                    return None;
+                }
                 let imm = args.eat(Number)?;
                 if !(0..=31).contains(&imm) {
                     return None;
@@ -304,7 +302,9 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             let s = op == LSRS;
             variant(args, |args| {
                 let (rd, rm) = ir!("{R} R")(args)?;
-                ir!("+")(args)?;
+                if !sign(args)?.is_positive() {
+                    return None;
+                }
                 let imm = args.eat(Number)?;
                 if !(1..=32).contains(&imm) {
                     return None;
@@ -331,10 +331,10 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             let s = matches!(op, MOVS | MVNS);
             let n = matches!(op, MVN | MVNS);
             variant(args, |args| {
-                let rd = ir!("R")(args)?;
-                let sign = args.eat(Sign)?;
+                let rd = register(args)?;
+                let sign = sign(args)?;
                 let imm = args.eat(Number)?;
-                let n = if sign == sign::NEGATIVE { !n } else { n };
+                let n = if sign.is_negative() { !n } else { n };
                 inst!([cond:4] 0 0 1 1 1 | n 1 | s | 0 0 0 0 | [rd:4] [imm:12])
             })
             .or_else(|| {
@@ -354,11 +354,13 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
             })
         }
         MOVT => variant(args, |args| {
-            let rd = ir!("R")(args)?;
-            args.eat(Sign).is(sign::POSITIVE)?;
+            let rd = register(args)?;
+            if !sign(args)?.is_positive() {
+                return None;
+            }
             let imm = args.eat(Number)?;
-            let top = imm.bits(12..16);
-            let bottom = imm.bits(0..12);
+            let top = bits::get(imm, 12..16);
+            let bottom = bits::get(imm, 0..12);
             inst!([cond:4] 0 0 1 1 0 | 1 | 0 0 | [top:4] [rd:4] [bottom:12])
         }),
         // MUL | MULS => {}
@@ -414,85 +416,81 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
         // SBCS => todo!(),
         // SDIV => todo!(),
         STM | STMIA | STMEA => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 0 | 1 | 0 | w | 0 [rn:4] [list:16])
         }),
         STMDA | STMED => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 0 | 0 | 0 | w | 0 [rn:4] [list:16])
         }),
         STMDB | STMFD => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 1 | 0 | 0 | w | 0 [rn:4] [list:16])
         }),
         STMIB | STMFA => variant(args, |args| {
-            let rn = ir!("R")(args)?;
-            let w = rn & 0x10 != 0;
+            let (rn, w) = register_bang(args)?;
             let list = args.eat(RegisterList)?;
             inst!([cond:4] 1 0 0 | 1 | 1 | 0 | w | 0 [rn:4] [list:16])
         }),
         STR | STRB => {
             let b = op == STRB;
             variant(args, |args| {
-                let rt = ir!("R")(args)?;
-                let (p, w, rn) = address(args)?;
+                let rt = register(args)?;
+                let (addr, rn) = address(args)?;
                 let (imm, u) = value_offset(args)?;
-                inst!([cond:4] 0 1 0 | p | u | b | w | 0 | [rn:4] [rt:4] [imm:12])
+                inst!([cond:4] 0 1 0 | {addr.p()} | u | b | {addr.w()} | 0 | [rn:4] [rt:4] [imm:12])
             })
             .or_else(|| {
                 variant(args, |args| {
-                    let rt = ir!("R")(args)?;
-                    let (p, w, rn) = address(args)?;
+                    let rt = register(args)?;
+                    let (addr, rn) = address(args)?;
                     let (rm, u) = register_offset(args)?;
                     let (shift, imm) = shift_imm(args)?;
-                    inst!([cond:4] 0 1 1 | p | u | b | w | 0 | [rn:4] [rt:4] [imm:5] [shift:2] 0 [rm:4])
+                    inst!([cond:4] 0 1 1 | {addr.p()} | u | b | {addr.w()} | 0 | [rn:4] [rt:4] [imm:5] [shift:2] 0 [rm:4])
                 })
             })
         }
         STRD => variant(args, |args| {
             let (rt, rt2) = ir!("R R")(args)?;
-            if rt % 2 != 0 || rt == 14 {
+            if rt.value() % 2 != 0 || rt.value() == 14 {
                 return None;
             }
-            if (rt + 1) != rt2 {
+            if (rt.value() + 1) != rt2.value() {
                 return None;
             }
-            let (p, w, rn) = address(args)?;
+            let (addr, rn) = address(args)?;
             let (imm, u) = value_offset(args)?;
-            let immh = imm.bits(4..8);
-            let imml = imm.bits(0..4);
-            inst!([cond:4] 0 0 0 | p | u | 1 | w | 0 | [rn:4] [rt:4] [immh:4] 1 | 1 1 | 1 [imml:4])
+            let immh = bits::get(imm, 4..8);
+            let imml = bits::get(imm, 0..4);
+            inst!([cond:4] 0 0 0 | {addr.p()} | u | 1 | {addr.w()} | 0 | [rn:4] [rt:4] [immh:4] 1 | 1 1 | 1 [imml:4])
         })
         .or_else(|| {
             variant(args, |args| {
                 let (rt, rt2) = ir!("R R")(args)?;
-                if (rt + 1) != rt2 {
+                if (rt.value() + 1) != rt2.value() {
                     return None;
                 }
-                let (p, w, rn) = address(args)?;
+                let (addr, rn) = address(args)?;
                 let (rm, u) = register_offset(args)?;
-                inst!([cond:4] 0 0 0 | p | u | 0 | w | 0 | [rn:4] [rt:4] | 0 0 0 0 | 1 | 1 1 | 1 [rm:4])
+                inst!([cond:4] 0 0 0 | {addr.p()} | u | 0 | {addr.w()} | 0 | [rn:4] [rt:4] | 0 0 0 0 | 1 | 1 1 | 1 [rm:4])
             })
         }),
         STRH => variant(args, |args| {
-            let rt = ir!("R")(args)?;
-            let (p, w, rn) = address(args)?;
+            let rt = register(args)?;
+            let (addr, rn) = address(args)?;
             let (imm, u) = value_offset(args)?;
-            let immh = imm.bits(4..8);
-            let imml = imm.bits(0..4);
-            inst!([cond:4] 0 0 0 | p | u | 1 | w | 0 | [rn:4] [rt:4] [immh:4] 1 | 0 1 | 1 [imml:4])
+            let immh = bits::get(imm, 4..8);
+            let imml = bits::get(imm, 0..4);
+            inst!([cond:4] 0 0 0 | {addr.p()} | u | 1 | {addr.w()} | 0 | [rn:4] [rt:4] [immh:4] 1 | 0 1 | 1 [imml:4])
         }).or_else(|| {
             variant(args, |args| {
-                let rt = ir!("R")(args)?;
-                let (p, w, rn) = address(args)?;
+                let rt = register(args)?;
+                let (addr, rn) = address(args)?;
                 let (rm, u) = register_offset(args)?;
-                inst!([cond:4] 0 0 0 | p | u | 0 | w | 0 | [rn:4] [rt:4] 0 0 0 0 | 1 | 0 1 | 1 [rm:4])
+                inst!([cond:4] 0 0 0 | {addr.p()} | u | 0 | {addr.w()} | 0 | [rn:4] [rt:4] 0 0 0 0 | 1 | 0 1 | 1 [rm:4])
             })
         }),
         // SUB => todo!(),
@@ -515,62 +513,114 @@ pub(crate) fn encode(args: &mut Cursor, labels: &HashMap<u32, LabelValue>, lbl: 
     }
 }
 
-fn shift_imm(args: &mut Cursor) -> Option<(u32, u32)> {
-    let data = if let Some(shift) = args.eat(Shift) {
-        let sign = args.eat(Sign);
-        let value = args.eat(Number);
-        if value.is_some() {
-            sign.is(sign::POSITIVE)?;
+/// Produces a 32 bit value from user definied values.
+///
+/// # How it works
+/// This macro is an Incremental tt muncher.
+/// It builds the expression `x` based on values that you give it.
+/// Once the input is exhausted, the value is returned as an Option.
+/// If 32 values weren't given to the macro, it will warn you and return None.
+macro_rules! inst {
+    // empty
+    (@inner; $pos:expr; $x:expr;) => {
+        if $pos == 0 {
+            Some($x)
+        } else {
+            None
         }
-        match (shift, value) {
-            // RRX
-            (shift::RRX, None) => (shift::RRX, 0),
-            // LSL | ROR
-            (shift::LSL | shift::ROR, Some(x)) if (1..=31).contains(&x) => (shift, x),
-            // LSR | ASR
-            (shift::LSR | shift::ASR, Some(x)) if (1..=32).contains(&x) => (shift, x % 32),
-            // No shift when value = 0
-            (_, Some(0)) => (shift::LSL, 0),
-            _ => return None,
+    };
+    // [{expr}:width] (fill with expr for width)
+    (@inner; $pos:expr; $x:expr; [{$ex:expr} : $width:expr] $($t:tt)*) => {
+        // inst!(@inner; $pos - $width; ($x).with_bits(($pos - $width)..($pos), ($ex).word() & !(!0 << $width)); $($t)*)
+        inst!(@inner; $pos - $width; bits::set($x, ($pos - $width)..($pos), ($ex).word() & !(!0 << $width)); $($t)*)
+    };
+    // [id:width] (fill with id for width)
+    (@inner; $pos:expr; $x:expr; [$id:ident : $width:expr] $($t:tt)*) => {
+        // inst!(@inner; $pos - $width; ($x).with_bits(($pos - $width)..($pos), ($id).word() & !(!0 << $width)); $($t)*)
+        inst!(@inner; $pos - $width; bits::set($x, ($pos - $width)..($pos), ($id).word() & !(!0 << $width)); $($t)*)
+    };
+    // 0 (do nothing)
+    (@inner; $pos:expr; $x:expr; 0 $($t:tt)*) => {
+        inst!(@inner; $pos - 1; $x; $($t)*)
+    };
+    // 1 (set bit at position)
+    (@inner; $pos:expr; $x:expr; 1 $($t:tt)*) => {
+        inst!(@inner; $pos - 1; ($x | (1 << ($pos - 1))); $($t)*)
+    };
+    // expr (width = 1)
+    (@inner; $pos:expr; $x:expr; {$ex:expr} $($t:tt)*) => {
+        inst!(@inner; $pos - 1; ($x | (($ex).word() << ($pos - 1))); $($t)*)
+    };
+    // id (width = 1)
+    (@inner; $pos:expr; $x:expr; $id:ident $($t:tt)*) => {
+        inst!(@inner; $pos - 1; ($x | (($id).word() << ($pos - 1))); $($t)*)
+    };
+    // | (visual separator)
+    (@inner; $pos:expr; $x:expr; | $($t:tt)*) => {
+        inst!(@inner; $pos; $x; $($t)*)
+    };
+    // entrance
+    ($($t:tt)*) => {
+        inst!(@inner; 32_u32; 0_u32; $($t)*)
+    };
+}
+
+/// Shortcuts for common closures that eat the IR.
+macro_rules! ir {
+    ("R") => {
+        register
+    };
+    ("R R") => {
+        |args: &mut Cursor| -> Option<(syntax::Register, syntax::Register)> {
+            let a = register(args)?;
+            let b = register(args)?;
+            Some((a, b))
         }
-    } else {
-        (shift::LSL, 0) // LSL #0
     };
-    Some(data)
-}
-
-fn address(args: &mut Cursor) -> Option<(bool, bool, u32)> {
-    let addr = args.eat(Address)?;
-    let reg = args.bump(Register);
-    let p = (addr & 0b10) != 0;
-    let w = (addr & 0b01) != 0;
-    Some((p, w, reg))
-}
-
-fn value_offset(args: &mut Cursor) -> Option<(u32, bool)> {
-    let data = if let Some(off) = args.eat(Offset) {
-        off.is(offset::VALUE)?;
-        let u = args.eat(Sign)? == sign::POSITIVE;
-        let imm = args.eat(Number)?;
-        (imm, u)
-    } else {
-        (0, true)
+    ("R R R") => {
+        |args: &mut Cursor| -> Option<(syntax::Register, syntax::Register, syntax::Register)> {
+            let a = register(args)?;
+            let b = register(args)?;
+            let c = register(args)?;
+            Some((a, b, c))
+        }
     };
-    Some(data)
+    ("R R R R") => {
+        |args: &mut Cursor| -> Option<(
+            syntax::Register,
+            syntax::Register,
+            syntax::Register,
+            syntax::Register,
+        )> {
+            let a = register(args)?;
+            let b = register(args)?;
+            let c = register(args)?;
+            let d = register(args)?;
+            Some((a, b, c, d))
+        }
+    };
+    ("{R} R") => {
+        |args: &mut Cursor| -> Option<(syntax::Register, syntax::Register)> {
+            let a = register(args)?;
+            Some(if let Some(b) = register(args) {
+                (a, b)
+            } else {
+                (a, a)
+            })
+        }
+    };
+    ("{R} R R") => {
+        |args: &mut Cursor| -> Option<(syntax::Register, syntax::Register, syntax::Register)> {
+            let a = register(args)?;
+            let b = register(args)?;
+            Some(if let Some(c) = register(args) {
+                (a, b, c)
+            } else {
+                (a, a, b)
+            })
+        }
+    };
 }
 
-fn register_offset(args: &mut Cursor) -> Option<(u32, bool)> {
-    args.eat(Offset).is(offset::REGISTER)?;
-    let u = args.eat(Sign)? == sign::POSITIVE;
-    let reg = args.eat(Register)?;
-    Some((reg, u))
-}
-
-fn label_offset(args: &mut Cursor, labels: &HashMap<u32, LabelValue>) -> Option<u32> {
-    let lbl = args.eat(Label)?;
-    let val = labels[&lbl];
-    match val {
-        LabelValue::Offset(x) => Some(x),
-        _ => None,
-    }
-}
+pub(self) use inst;
+pub(self) use ir;

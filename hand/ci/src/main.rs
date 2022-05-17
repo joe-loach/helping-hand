@@ -55,20 +55,21 @@ fn run() -> anyhow::Result<()> {
 
     let ir = middle::lower(root);
     if emit == cli::Emit::IR {
-        use middle::Atom;
+        use middle::AtomKind;
         use syntax::{Condition, Directive, Opcode, Register, RegisterList, Sign};
         for stmt in &ir {
-            for (&atom, &data) in stmt.iter() {
-                match atom {
-                    Atom::Directive => {
+            for atom in stmt.atoms() {
+                let data = atom.raw();
+                match atom.kind {
+                    AtomKind::Directive => {
                         let dir = unsafe { middle::higher::<Directive>(data) };
                         print!("{} ", dir.as_str());
                     }
-                    Atom::Instruction => {
+                    AtomKind::Instruction => {
                         let op = unsafe { middle::higher::<Opcode>(data) };
                         print!("{}", op.as_str());
                     }
-                    Atom::Condition => {
+                    AtomKind::Condition => {
                         let cond = unsafe { middle::higher::<Condition>(data) };
                         print!(
                             "{} ",
@@ -79,8 +80,8 @@ fn run() -> anyhow::Result<()> {
                             }
                         );
                     }
-                    Atom::Shift => print!("{} ", data),
-                    Atom::Register => {
+                    AtomKind::Shift => print!("{} ", data),
+                    AtomKind::Register => {
                         let reg = unsafe { middle::higher::<Register>(data) };
                         print!(
                             "{}{} ",
@@ -88,13 +89,13 @@ fn run() -> anyhow::Result<()> {
                             if data & 0x10 != 0 { "!" } else { "" }
                         );
                     }
-                    Atom::Label => print!("{}: ", data),
-                    Atom::Number => print!("{} ", data),
-                    Atom::Char => print!("{}", char::from_u32(data).unwrap()),
-                    Atom::Bool => print!("{}", if data == 1 { "TRUE" } else { "FALSE" }),
-                    Atom::Address => print!("@ "),
-                    Atom::Offset => print!("+= "),
-                    Atom::Sign => {
+                    AtomKind::Label => print!("{}: ", data),
+                    AtomKind::Number => print!("{} ", data),
+                    AtomKind::Char => print!("{}", char::from_u32(data).unwrap()),
+                    AtomKind::Bool => print!("{}", if data == 1 { "TRUE" } else { "FALSE" }),
+                    AtomKind::Address => print!("@ "),
+                    AtomKind::Offset => print!("+= "),
+                    AtomKind::Sign => {
                         let sign = unsafe { middle::higher::<Sign>(data) };
                         print!(
                             "{}",
@@ -105,11 +106,11 @@ fn run() -> anyhow::Result<()> {
                             }
                         );
                     }
-                    Atom::RegisterList => {
+                    AtomKind::RegisterList => {
                         let list = unsafe { middle::higher::<RegisterList>(data) };
                         print!("{{{:016b}}}", list.flags);
                     }
-                    Atom::Error => print!("ERROR "),
+                    AtomKind::Error => print!("ERROR "),
                 }
             }
             println!();

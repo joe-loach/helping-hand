@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
-use middle::consts::*;
-use middle::Atom::*;
+use middle::AtomKind::*;
 use middle::{higher, Cursor};
 use syntax::Directive::{self, *};
 
-use crate::{variant, Binary, Is, LabelValue};
+use crate::{Binary, LabelValue};
+use crate::cursor::*;
 
 // https://developer.arm.com/documentation/101754/0617/armclang-Reference/armclang-Integrated-Assembler/Data-definition-directives?lang=en
 // https://developer.arm.com/documentation/dui0742/k/Migrating-from-armasm-to-the-armclang-Integrated-Assembler/Data-definition-directives?lang=en
@@ -14,7 +12,7 @@ use crate::{variant, Binary, Is, LabelValue};
 pub(super) fn encode(
     bin: &mut Binary,
     args: &mut Cursor,
-    labels: &mut HashMap<u32, LabelValue>,
+    labels: &mut crate::LabelMap,
     lbl: u32,
     op: u32,
 ) -> Option<()> {
@@ -48,24 +46,30 @@ pub(super) fn encode(
         }
         DCD | DEFW => {
             let word = variant(args, |args| {
-                args.eat(Sign).is(sign::POSITIVE)?;
-                let word = args.eat(Number)?;
+                let (sign, word) = number(args)?;
+                if sign.is_negative() {
+                    return None;
+                }
                 Some(word)
             })?;
             bin.push(word);
         }
         SPACE | DEFS => {
             let size = variant(args, |args| {
-                args.eat(Sign).is(sign::POSITIVE)?;
-                let size = args.eat(Number)?;
+                let (sign, size) = number(args)?;
+                if sign.is_negative() {
+                    return None;
+                }
                 Some(size)
             })?;
             bin.extend_with_n(size as usize, 0);
         }
         EQU => {
             let expr = variant(args, |args| {
-                args.eat(Sign).is(sign::POSITIVE)?;
-                let expr = args.eat(Number)?;
+                let (sign, expr) = number(args)?;
+                if sign.is_negative() {
+                    return None;
+                }
                 Some(expr)
             })?;
             // change the lbl to be a expr value

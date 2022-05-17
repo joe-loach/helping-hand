@@ -1,50 +1,7 @@
-pub mod consts {
-    pub mod address {
-        pub const OFFSET: u32 = 0b10;
-        pub const POSTINC: u32 = 0b00;
-        pub const PREINC: u32 = 0b11;
-    }
-
-    pub mod shift {
-        pub const LSL: u32 = 0b00;
-        pub const LSR: u32 = 0b01;
-        pub const ASR: u32 = 0b10;
-        pub const ROR: u32 = 0b11;
-        pub const RRX: u32 = 0b11;
-    }
-
-    pub mod offset {
-        pub const VALUE: u32 = 0;
-        pub const REGISTER: u32 = 1;
-    }
-
-    pub mod sign {
-        pub const POSITIVE: u32 = 0;
-        pub const NEGATIVE: u32 = 1;
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Atom {
-    Instruction,
-    Directive,
-    Condition,
-    Shift,
-    Register,
-    Label,
-    Number,
-    Char,
-    Bool,
-    Address,
-    Offset,
-    Sign,
-    RegisterList,
-    Error,
-}
-
 use std::collections::HashMap;
 
-use crate::{consts::*, IR};
+use crate::AtomKind::*;
+use crate::IR;
 use ast::Token;
 
 type LabelMap = HashMap<String, u32>;
@@ -57,13 +14,11 @@ type LabelMap = HashMap<String, u32>;
 ///     | DIRECTIVE ARGS?
 ///     )?
 pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
-    use Atom::*;
-
     let mut ir = IR::new();
 
-    for (stmt, pos) in root.program().statements().zip(0_u32..) {
+    for (stmt, i) in root.program().statements().zip(0_u32..) {
         // LABEL
-        ir.push(Label, pos);
+        ir.push(Label, i);
         // BODY?
         if let Some(body) = stmt.body() {
             match body {
@@ -110,7 +65,7 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
             ast::ArgKind::Label(lbl) => {
                 let name = lbl.name().ident();
                 if let Some(&data) = labels.get(name.text()) {
-                    ir.push(Atom::Label, data);
+                    ir.push(Label, data);
                 } else {
                     ir.error("Label is not defined");
                 }
@@ -118,29 +73,13 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
             ast::ArgKind::Immediate(imm) => immediate(ir, imm),
             ast::ArgKind::Literal(lit) => literal(ir, lit),
             ast::ArgKind::Address(addr) => {
-                let offset = match addr.kind() {
-                    ast::AddrKind::Offset(a) => {
-                        ir.push(Address, address::OFFSET);
-                        a.offset()
-                    }
-                    ast::AddrKind::PreInc(a) => {
-                        ir.push(Address, address::PREINC);
-                        Some(a.offset())
-                    }
-                    ast::AddrKind::PostInc(a) => {
-                        ir.push(Address, address::POSTINC);
-                        Some(a.offset())
-                    }
-                };
+                ir.push(Address, addr.syntax() as u32);
                 register(ir, addr.base());
-                if let Some(offset) = offset {
+                if let Some(offset) = addr.offset() {
+                    ir.push(Offset, offset.syntax() as u32);
                     match offset.kind() {
-                        ast::OffsetKind::Immediate(o) => {
-                            ir.push(Offset, offset::VALUE);
-                            immediate(ir, o.immediate());
-                        }
+                        ast::OffsetKind::Immediate(o) => immediate(ir, o.immediate()),
                         ast::OffsetKind::Register(o) => {
-                            ir.push(Offset, offset::REGISTER);
                             sign(ir, o.sign());
                             register(ir, o.base());
                             if let Some(sft) = o.shift() {
@@ -162,19 +101,13 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
     }
 
     fn sign(ir: &mut IR, sign: ast::Sign) {
-        ir.push(
-            Sign,
-            match sign.is_positive() {
-                true => sign::POSITIVE,
-                false => sign::NEGATIVE,
-            },
-        )
+        ir.push(Sign, sign.syntax() as u32)
     }
 
     /// 0..4: value
     /// 4: has_bang
     fn register(ir: &mut IR, reg: ast::Register) {
-        let value = reg.syntax().value() as u32;
+        let value = reg.syntax().value();
         let bang = reg.bang().is_some() as u32;
         ir.push(Register, value | bang << 4);
     }
@@ -205,15 +138,7 @@ pub(super) fn ir(root: ast::Root, mut labels: LabelMap) -> IR {
     }
 
     fn shift(ir: &mut IR, shift: ast::Shift) {
-        use syntax::Opcode::*;
-        let value = match shift.op().code().syntax() {
-            LSL => shift::LSL,
-            LSR => shift::LSR,
-            ASR => shift::ASR,
-            RRX | ROR => shift::ROR,
-            _ => unreachable!(),
-        };
-        ir.push(Shift, value);
+        ir.push(Shift, shift.syntax().value());
         if let Some(data) = shift.data() {
             match data {
                 ast::ShiftData::Register(reg) => register(ir, reg),
