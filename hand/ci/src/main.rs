@@ -124,16 +124,14 @@ fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-const OK_CODE: i32 = 0;
-const ERR_CODE: i32 = 1;
+use std::process::ExitCode;
 
-fn main() {
-    let code = match run() {
-        Ok(..) => OK_CODE,
+fn main() -> ExitCode {
+    match run() {
+        Ok(..) => ExitCode::SUCCESS,
         Err(e) => {
             println!("error: {}", e);
-            ERR_CODE
+            ExitCode::FAILURE
         }
-    };
-    std::process::exit(code);
+    }
 }
