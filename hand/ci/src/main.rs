@@ -42,7 +42,7 @@ fn run() -> anyhow::Result<()> {
             .expect("all errors occur inside statements");
         let stmt_text = stmt.node().text().to_string();
         let stmt_text_sl = stmt_text.replace(['\n', '\r'], "");
-        println!("{}", stmt_text_sl);
+        eprintln!("{}", stmt_text_sl);
         let offset = orig.text_range().start() - stmt.node().text_range().start();
         let offset: usize = offset.try_into().unwrap();
         let offset = offset - (stmt_text.len() - stmt_text_sl.len());
@@ -130,7 +130,7 @@ fn main() -> ExitCode {
     match run() {
         Ok(..) => ExitCode::SUCCESS,
         Err(e) => {
-            println!("error: {}", e);
+            eprintln!("error: {}", e);
             ExitCode::FAILURE
         }
     }
