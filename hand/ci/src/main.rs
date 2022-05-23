@@ -119,7 +119,7 @@ fn run() -> anyhow::Result<()> {
 
     let binary = enc::encode(ir);
 
-    std::fs::write(args.output, binary.as_bytes())?;
+    std::fs::write(args.output, binary)?;
 
     Ok(())
 }

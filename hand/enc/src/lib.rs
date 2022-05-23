@@ -1,45 +1,12 @@
+mod binary;
 mod bits;
 mod cursor;
 mod directive;
 mod instruction;
 
-use std::collections::HashMap;
+use crate::binary::Binary;
 
-pub struct Binary {
-    inner: Vec<u8>,
-}
-
-impl Binary {
-    pub(crate) fn new() -> Self {
-        Self { inner: Vec::new() }
-    }
-
-    pub(crate) fn push(&mut self, data: u32) {
-        // this compiler is little-endian
-        let bytes = data.to_le_bytes();
-        self.inner.extend_from_slice(&bytes);
-    }
-
-    pub(crate) fn push_byte(&mut self, byte: u8) {
-        self.inner.push(byte);
-    }
-
-    pub(crate) fn extend_with(&mut self, bytes: &[u8]) {
-        self.inner.extend_from_slice(bytes)
-    }
-
-    pub(crate) fn extend_with_n(&mut self, n: usize, byte: u8) {
-        self.inner.extend((0..n).map(|_| byte));
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        self.inner.as_slice()
-    }
-}
+pub(crate) type LabelMap = std::collections::HashMap<u32, LabelValue>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum LabelValue {
@@ -47,9 +14,7 @@ pub enum LabelValue {
     Expr(u32),
 }
 
-pub type LabelMap = HashMap<u32, LabelValue>;
-
-pub fn encode(ir: middle::IR) -> Binary {
+pub fn encode(ir: middle::IR) -> Vec<u8> {
     use middle::AtomKind::*;
 
     // label -> value
@@ -107,5 +72,5 @@ pub fn encode(ir: middle::IR) -> Binary {
         };
     }
 
-    binary
+    binary.into_vec()
 }
