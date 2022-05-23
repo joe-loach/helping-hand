@@ -1,5 +1,6 @@
 pub fn set(x: u32, range: std::ops::Range<u32>, bits: u32) -> u32 {
-    intbits::Bits::with_bits(x, range, bits)
+    let width = range.end - range.start;
+    intbits::Bits::with_bits(x, range, bits & !(!0 << width))
 }
 
 pub fn get(x: u32, range: std::ops::Range<u32>) -> u32 {

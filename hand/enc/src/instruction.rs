@@ -137,8 +137,7 @@ pub(crate) fn encode(
             .or_else(|| {
                 variant(args, |args| {
                     let (rn, rm) = ir!("R R")(args)?;
-                    let shift = args.eat(Shift)?;
-                    let rs = register(args)?;
+                    let (shift, rs) = shift_reg(args)?;
                     inst!([cond:4] 0 0 0 1 0 | 1 s | 1 | [rn:4] | 0 0 0 0 | [rs:4] 0 [shift:2] 1 [rm:4])
                 })
             })
@@ -282,10 +281,7 @@ pub(crate) fn encode(
             let s = op == LSLS;
             variant(args, |args| {
                 let (rd, rm) = ir!("{R} R")(args)?;
-                if !sign(args)?.is_positive() {
-                    return None;
-                }
-                let imm = args.eat(Number)?;
+                let imm = signed_number(args, syntax::Sign::Positive)?;
                 if !(0..=31).contains(&imm) {
                     return None;
                 }
@@ -302,10 +298,7 @@ pub(crate) fn encode(
             let s = op == LSRS;
             variant(args, |args| {
                 let (rd, rm) = ir!("{R} R")(args)?;
-                if !sign(args)?.is_positive() {
-                    return None;
-                }
-                let imm = args.eat(Number)?;
+                let imm = signed_number(args, syntax::Sign::Positive)?;
                 if !(1..=32).contains(&imm) {
                     return None;
                 }
@@ -332,8 +325,7 @@ pub(crate) fn encode(
             let n = matches!(op, MVN | MVNS);
             variant(args, |args| {
                 let rd = register(args)?;
-                let sign = sign(args)?;
-                let imm = args.eat(Number)?;
+                let (sign, imm) = number(args)?;
                 let n = if sign.is_negative() { !n } else { n };
                 inst!([cond:4] 0 0 1 1 1 | n 1 | s | 0 0 0 0 | [rd:4] [imm:12])
             })
@@ -347,18 +339,14 @@ pub(crate) fn encode(
             .or_else(|| {
                 variant(args, |args| {
                     let (rd, rm) = ir!("R R")(args)?;
-                    let shift = args.eat(Shift)?;
-                    let rs = args.eat(Register)?;
+                    let (shift, rs) = shift_reg(args)?;
                     inst!([cond:4] 0 0 0 1 1 | n 1 | s | 0 0 0 0 | [rd:4] [rs:4] 0 [shift:2] 1 [rm:4])
                 })
             })
         }
         MOVT => variant(args, |args| {
             let rd = register(args)?;
-            if !sign(args)?.is_positive() {
-                return None;
-            }
-            let imm = args.eat(Number)?;
+            let imm = signed_number(args, syntax::Sign::Positive)?;
             let top = bits::get(imm, 12..16);
             let bottom = bits::get(imm, 0..12);
             inst!([cond:4] 0 0 1 1 0 | 1 | 0 0 | [top:4] [rd:4] [bottom:12])
@@ -531,13 +519,11 @@ macro_rules! inst {
     };
     // [{expr}:width] (fill with expr for width)
     (@inner; $pos:expr; $x:expr; [{$ex:expr} : $width:expr] $($t:tt)*) => {
-        // inst!(@inner; $pos - $width; ($x).with_bits(($pos - $width)..($pos), ($ex).word() & !(!0 << $width)); $($t)*)
-        inst!(@inner; $pos - $width; bits::set($x, ($pos - $width)..($pos), ($ex).word() & !(!0 << $width)); $($t)*)
+        inst!(@inner; $pos - $width; bits::set($x, ($pos - $width)..($pos), ($ex).word()); $($t)*)
     };
     // [id:width] (fill with id for width)
     (@inner; $pos:expr; $x:expr; [$id:ident : $width:expr] $($t:tt)*) => {
-        // inst!(@inner; $pos - $width; ($x).with_bits(($pos - $width)..($pos), ($id).word() & !(!0 << $width)); $($t)*)
-        inst!(@inner; $pos - $width; bits::set($x, ($pos - $width)..($pos), ($id).word() & !(!0 << $width)); $($t)*)
+        inst!(@inner; $pos - $width; bits::set($x, ($pos - $width)..($pos), ($id).word()); $($t)*)
     };
     // 0 (do nothing)
     (@inner; $pos:expr; $x:expr; 0 $($t:tt)*) => {
